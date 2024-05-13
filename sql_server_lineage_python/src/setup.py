@@ -48,7 +48,7 @@ with open("README.md", "r") as rd:
 
 setup(
     name='sql-server-lineage',
-    version='1.10.0',
+    version='1.11.0',
     description='Python library to extract lineage from Sql Server stored procedures',
     long_description=long_description,
     long_description_content_type="text/markdown",
