@@ -16,4 +16,4 @@ jobs:
   build_python:
     needs:
     - tests
-    uses: ./.github/workflows/build-wheels.yml 
+    uses: ./.github/workflows/build-wheels.yml
