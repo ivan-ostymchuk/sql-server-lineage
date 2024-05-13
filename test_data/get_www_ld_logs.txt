@@ -1,0 +1,10 @@
+create procedure [schema].[get_www_ld_logs]
+as
+begin
+
+
+insert into prefix1_shows.schema.www_ld
+select
+    *
+from prefix1_prefix2.schema.v_www_ld
+end

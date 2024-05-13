@@ -1,0 +1,146 @@
+create procedure [schema].[insert_dividend_ttt_exchanges] @date_limit_number int = 3
+as
+begin
+
+    declare @extract_timestamp as datetime2;
+    set @extract_timestamp = cast(getdate() - @date_limit_number as date);
+
+
+    drop table if exists #tmp_prefix2_ttt_dividendted_exchanges;
+
+    select top 0 *
+        into #tmp_prefix2_ttt_dividendted_exchanges
+        from prefix2_ttt_dividendted_exchanges;
+
+    with dividends as (
+        select
+            fr_id,
+            dividend_amount_1 as dividend_amount,
+            1 as dividend_shell,
+            bazar_id_1 as bazar_id,
+            bazar_name_1 as bazar_name,
+            juice_id_1 as juice_id
+        from prefix1_prefix2.[schema].[prefix2_fr_ttt] with (nolock)
+        where bazar_id_1 is not null
+        and dividend_amount_1 is not null
+        union
+        select 
+            fr_id,
+            dividend_amount_2 as dividend_amount,
+            2 as dividend_shell,
+            bazar_id_2 as bazar_id,
+            bazar_name_2 as bazar_name,
+            juice_id_2 as juice_id
+        from prefix1_prefix2.[schema].[prefix2_fr_ttt] with (nolock)
+        where bazar_id_2 is not null
+        and dividend_amount_2 is not null
+        union
+        select 
+            fr_id,
+            dividend_amount_3 as dividend_amount,
+            3 as dividend_shell,
+            bazar_id_3 as bazar_id,
+            bazar_name_3 as bazar_name,
+            juice_id_3 as juice_id
+        from prefix1_prefix2.[schema].[prefix2_fr_ttt] with (nolock)
+        where bazar_id_3 is not null
+        and dividend_amount_3 is not null
+        union
+        select
+            fr_id,
+            dividend_amount_4 as dividend_amount,
+            4 as dividend_shell,
+            bazar_id_4 as bazar_id,
+            bazar_name_4 as bazar_name,
+            juice_id_4 as juice_id
+        from prefix1_prefix2.[schema].[prefix2_fr_ttt] with (nolock)
+        where bazar_id_4 is not null
+        and dividend_amount_4 is not null
+        union
+        select 
+            fr_id,
+            dividend_amount_5 as dividend_amount,
+            5 as dividend_shell,
+            bazar_id_5 as bazar_id,
+            bazar_name_5 as bazar_name,
+            juice_id_5 as juice_id
+        from prefix1_prefix2.[schema].[prefix2_fr_ttt] with (nolock)
+        where bazar_id_5 is not null
+        and dividend_amount_5 is not null
+        union
+        select 
+            fr_id,
+            dividend_amount_6 as dividend_amount,
+            6 as dividend_shell,
+            bazar_id_6 as bazar_id,
+            bazar_name_6 as bazar_name,
+            juice_id_6 as juice_id
+        from prefix1_prefix2.[schema].[prefix2_fr_ttt] with (nolock)
+        where bazar_id_6 is not null
+        and dividend_amount_6 is not null
+        union
+        select 
+            fr_id,
+            dividend_amount_7 as dividend_amount,
+            7 as dividend_shell,
+            bazar_id_7 as bazar_id,
+            bazar_name_7 as bazar_name,
+            juice_id_7 as juice_id
+        from prefix1_prefix2.[schema].[prefix2_fr_ttt] with (nolock)
+        where bazar_id_7 is not null
+        and dividend_amount_7 is not null
+    )
+    insert into #tmp_prefix2_ttt_dividendted_exchanges
+    select a.prefix2_fr_id                             as prefix2_fr_id,
+           a.fr_id                                 as fr_id,
+           a.fr_name                               as fr_name,
+           a.offer                      as offer,
+           a.exchangedate                       as exchangedate,
+           a.ice_start                        as ice_start,
+           a.ice_end                          as ice_end,
+           a.status                                as status,
+           (s.dividend_amount) / nullif(b.value, 0)   as standard_ppin,
+           s.dividend_amount                          as source_ppin,
+           a.bomby                              as bomby,
+           a.magic_id                            as magic_id,
+           a.magic_code                          as magic_code,
+           a.indeed                                as indeed,
+           null                                    as prefix2_table_id,
+           null                                    as table_id,
+           a.table_name                             as table_name,
+           a.book_status                        as book_status,
+           a.actual_close_date                     as actual_close_date,
+           a.pcceline_id                           as pcceline_id,
+           a.stage_id                              as stage_id,
+           s.bazar_id                               as bazar_id,
+           s.bazar_name                             as bazar_name,
+           a.tags_merged                           as tags_merged,
+           s.juice_id                            as juice_id,
+           a.numbers_of_dividend                      as number_of_dividends,
+           s.dividend_shell                           as dividend_shell,
+           a.state_table_id                        as state_table_id
+        from [prefix1_prefix2].[schema].[prefix2_fr_ttt] a
+                 left join prefix1_prefix3.schema.rrr_bombies b
+                           on upper(a.bomby) = upper(b.bomby)
+                               and cast(a.exchangedate as date) = b.date
+                 left join dividends s on (s.fr_id = a.fr_id)
+        where a.numbers_of_dividend >= 1
+          and a.exchangedate >= @extract_timestamp
+
+    delete
+        from [prefix1_prefix2].[schema].[prefix2_ttt_dividendted_exchanges]
+        where exchangedate >= @extract_timestamp
+
+    insert into [prefix1_prefix2].[schema].[prefix2_ttt_dividendted_exchanges]
+    select *
+        from #tmp_prefix2_ttt_dividendted_exchanges;
+
+--------Ddd JJJ 20/12/2070-------update table ID based on table name & bazar ID
+    update
+        a
+    set a.prefix2_table_id = b.prefix2_table_id,
+        a.table_id     = b.table_id
+        from [prefix1_prefix2].[schema].[prefix2_ttt_dividendted_exchanges] a
+                 left join [prefix1_prefix2].[schema].[prefix2_tables] b on a.table_name = b.table_name and a.bazar_id = b.bazar_id
+
+end

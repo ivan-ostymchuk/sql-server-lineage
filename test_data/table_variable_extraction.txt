@@ -1,0 +1,62 @@
+CREATE procedure [schema].[table_variable_extraction]
+as
+begin
+
+
+    truncate table [prefix1_shows].[schema].[table_test];
+
+    DECLARE @TableVariable TABLE (
+        column1 string,
+        column2 int
+    );
+
+    INSERT INTO @TableVariable (column1, column2)
+    SELECT column1, column2 FROM other_source;
+    
+    insert
+        into [prefix1_shows].[schema].[table_test]
+    select *
+        from -- some comment
+            @TableVariable
+    left join prefix1_prefix2.schema.test2 s on c.bazar_id=s.bazar_id c.valid_from = s.valid_from;
+
+    update tt
+    set tt.a = case s.column
+                    when 1111
+                        then 2222
+                    when 3333
+                        then 4444
+                    else (
+                        -- comment
+                        -- comment
+                        -- comment
+                        select max(col)
+                        from [prefix1_shows].[schema].[table_test3] z
+                        where z.z_name like 'aaa%'
+                        and col <> 12345 -- comment
+                    ) end
+    from [prefix1_shows].[schema].[table_test] as tt
+    inner join db.schema.something as s on tt.key = s.key
+    where some_key = 10;
+
+    update t
+    set t.a = case s.column
+                    when 1111
+                        then 2222
+                    when 3333
+                        then 4444
+                    else (
+                        -- comment
+                        -- comment
+                        -- comment
+                        select max(col)
+                        from [prefix1_shows].[schema].[table_test3] z
+                        where z.z_name like 'aaa%'
+                        and col <> 12345 -- comment
+                    ) end
+    from (
+        select * from [prefix1_shows].[schema].[table_test6]
+    ) t
+    where some_key = 10
+
+end;

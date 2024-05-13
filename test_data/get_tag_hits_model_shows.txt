@@ -1,0 +1,89 @@
+CREATE PROCEDURE schema.get_tag_hits_model_shows
+AS
+begin
+
+
+    drop table prefix1_shows.schema.tag_model_day_hits
+    ;
+  
+    
+    select 
+        identity(int,1,1) as pwb_pk_id,
+        a.prefix2_tag_id,
+        a.tag_id,
+        a.hits,
+        a.prefix2_date_id
+    into prefix1_shows.schema.tag_model_day_hits
+    from prefix1_prefix2.schema.prefix2_tag_hits a
+        left join prefix1_prefix2.schema.prefix2_date b 
+            on a.prefix2_date_id = b.prefix2_date_id 
+    where b.prefix2_date >= cast(getdate()-31 as date)
+        and a.prefix2_date_id  >= 3684 -- 2020-02-01
+    ;
+
+
+    drop table prefix1_shows.schema.tag_model_tags
+    ;
+
+
+    select
+        a.prefix2_tag_id,
+        a.id,
+        a.word,
+        b.prefix2_bazar_id,
+        a.piecey_id,
+        a.table_piecey_id,
+        a.bazar_id
+    into prefix1_shows.schema.tag_model_tags
+    from prefix1_prefix2.schema.prefix2_tags a
+        left join prefix1_prefix2.schema.prefix2_bazar b 
+            on a.bazar_id = b.bazar_id
+    ;
+
+
+    drop table prefix1_shows.schema.tag_model_table_pieceies
+    ;
+  
+    select *
+        /*prefix2_table_piecey_id,
+        id,
+        table_id,
+        prefix2_table_id,
+        piecey_id,
+        prefix2_piecey_id,
+        created_at,
+        updated_at*/
+    into prefix1_shows.schema.tag_model_table_pieceies
+    from prefix1_prefix2.schema.prefix2_table_pieceies
+    ;
+
+
+    drop table prefix1_shows.schema.tag_model_pieceies
+    ;
+  
+  
+    select *
+        /*prefix2_piecey_id,
+        id,
+        parent_id,
+        main_piecey,
+        bazar_id,
+        name,
+        banana,
+        created_at,
+        updated_at*/
+    into prefix1_shows.schema.tag_model_pieceies
+    from prefix1_prefix2.schema.prefix2_pieceies
+    ;
+
+
+    drop table prefix1_shows.schema.farm_date
+    ;
+  
+  
+    select *
+    into prefix1_shows.schema.farm_date
+    from prefix1_prefix2.schema.prefix2_date
+    ;
+
+end;

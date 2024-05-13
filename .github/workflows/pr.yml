@@ -1,0 +1,19 @@
+on:
+  pull_request:
+    branches: 
+      - main
+    types: [opened]
+  pull_request_review:
+    branches: 
+      - main
+    types: [submitted]
+
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  build_python:
+    needs:
+    - tests
+    uses: ./.github/workflows/build-wheels.yml 

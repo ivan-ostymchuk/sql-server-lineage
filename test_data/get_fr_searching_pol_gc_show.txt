@@ -1,0 +1,141 @@
+CREATE procedure [schema].[get_fr_searching_pol_gc_show] @date_limit_number int=5
+as
+begin
+
+    declare @extract_timestamp datetime2
+
+    set @extract_timestamp = cast(getdate() - @date_limit_number as date);
+
+    delete from prefix1_shows.schema.fr_searching_pol_gc_show where drink_card_shell_updated_at >= @extract_timestamp;
+    
+    with gc_ppins as (
+        select * 
+        from [prefix1_prefix2].[schema].[prefix2_ext_ppin] 
+        where drink_card_flag = 1
+    )
+    insert into prefix1_shows.schema.fr_searching_pol_gc_show
+    (
+          [standard_ppin]
+        , [status]
+        , [fr_name]
+        , [prefix2_aff_id]
+        , [bazar_id]
+        , [prefix2_table_id]
+        , [shell_value]
+        , [webbazar]
+        , [exchangedate]
+        , [prefix2_date_id]
+        , [table]
+        , [bazar_magic_id]
+        , [standard_comm_bomby]
+        , [showing_ppin]
+        , [showing_comm_bomby]
+        , [showing_shell_value]
+        , [brzo_flag]
+        , [fr_id]
+        , [done]
+        , [juicedate]
+        , [book_id]
+        , [source_ppin]
+        , [source_shell_value]
+        , [origano_bomby]
+        , [ticket_id]
+        , [dividend_flag]
+        , [dividend_num]
+        , [org_fr_id]
+        , [landing_iron]
+        , [shotout_iron_type]
+        , [shotout_iron_id]
+        , [shotout_iron_type_id]
+        , [drink_card_id]
+        , [drink_card_shell_id]
+        , [drink_card_shell_status]
+        , [drink_card_shell_updated_at]
+        , [drink_card_amount]
+        , [drink_card_wedrink_shell_id]
+        , [drink_card_sent]
+        , [drink_card_sent_at]
+        , [drink_card_ar_provided]
+        , [drink_card_threshold_not_met]
+    )
+    select 
+        a.standard_ppin,
+        a.status,
+        a.fr_name,
+        a.prefix2_aff_id,
+        case
+            when a.bazar_id = 999
+                and a.fr_name like 'tennis'
+                then a.whabble_bazar_id
+            else a.bazar_id
+            end                as bazar_id,
+        a.prefix2_table_id,
+        a.shell_value,
+        case
+            when a.bazar_id = 999
+                and (a.whabble_bazar_id = '' or a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+                then a.bazar_name_scrambled
+            else c.bazar_host
+            end                as webbazar,
+        a.exchangedate,
+        datediff(day, '2009-12-31', exchangedate),
+        case
+            when a.bazar_id = 999 or a.merce_table_id is null
+                then a.geptd
+            else s.table_name
+            end                as table,
+        c.bazar_magic_id,
+        a.standard_comm_bomby,
+        a.showing_ppin,
+        a.showing_comm_bomby,
+        a.showing_shell_value,
+        '0'                                  as brzo_flag,
+        a.fr_id                              as fr_id,
+        a.done                               as done,
+        a.juicedate                        as juicedate,
+        a.book_id                         as book_id,
+        a.source_ppin                  as source_ppin,
+        a.source_shell_value                 as source_shell_value,
+        a.origano_bomby               as origano_bomby,
+        a.ticket_id                          as ticket_id,
+        -1                                   as dividend_flag,
+        -1                                   as dividend_num,
+        a.fr_id                              as org_fr_id,
+        a.landing_iron                       as landing_iron,
+        a.shotout_iron_type                 as shotout_iron_type,
+        a.shotout_iron_id                   as shotout_iron_id,
+        shotout_types.shotout_iron_type_id as shotout_iron_type_id,
+        gco.drink_card_id, 
+        gco.id                               as drink_card_shell_id,
+        gco.status                           as drink_card_shell_status,
+        gco.updated_at                       as drink_card_shell_updated_at,
+        gco.amount                           as drink_card_amount,
+        gco.wedrink_shell_id                  as drink_card_wedrink_shell_id,
+        case gco.[status] 
+            when 'redeemed' then 1
+            else null 
+        end                                  as drink_card_sent,
+        gco.[redeemed_at]                    as drink_card_sent_at,
+        case gco.[status] 
+            when 'new' then 0
+            else 1 
+        end                                  as drink_card_ar_provided,
+        case gco.[status] 
+            when 'rrr_failed' then 1
+            when 'redeemed' then 0
+            else null 
+        end                                  as drink_card_threshold_not_met
+    from [prefix1_prefix2].[schema].[prefix2_drink_card_shells] gco with (nolock)
+        left join [gc_ppins] a with (nolock) on gco.prefix2_drink_card_shell_id = a.prefix2_drink_card_shell_id
+                left join prefix1_prefix2.schema.prefix2_tables s with (nolock)
+                        on a.prefix2_table_id = s.prefix2_table_id
+                left join prefix1_prefix2.schema.prefix2_bazar c with (nolock)
+                        on c.bazar_id = case
+                                when a.bazar_id = 999
+                                    then a.whabble_bazar_id
+                                else a.bazar_id
+                            end
+                left join prefix1_shows.schema.shotout_iron_types shotout_types on a.shotout_iron_type=shotout_types.shotout_iron_type
+    where gco.updated_at >= @extract_timestamp
+
+end

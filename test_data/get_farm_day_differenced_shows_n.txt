@@ -1,0 +1,747 @@
+create proc [schema].[get_farm_day_differenced_shows_n] @date_limit_number int=5, @date_limit_upperbound int=0
+as
+begin
+
+    declare @extract_timestamp_lowerbound as datetime2;
+    declare @extract_date_id_lowerbound as bigint;
+    set @extract_timestamp_lowerbound = cast(getdate() - @date_limit_number as date);
+    set @extract_date_id_lowerbound = datediff(day, '2009-12-31', convert(date, @extract_timestamp_lowerbound))
+
+    declare @extract_timestamp_upperbound as datetime2;
+    declare @extract_date_id_upperbound as bigint;
+    set @extract_timestamp_upperbound = cast(getdate() - @date_limit_upperbound as date);
+    set @extract_date_id_upperbound = datediff(day, '2009-12-31', convert(date, @extract_timestamp_upperbound))
+
+
+    print convert(varchar, getdate(), 120) + ' step1 delete farm_tickets'
+    delete from prefix1_shows.schema.farm_tickets;
+
+    print convert(varchar, getdate(), 120) + ' step2 build farm_tickets'
+    insert into prefix1_shows.schema.farm_tickets
+    select *
+        from prefix1_prefix2.schema.prefix2_tickets;
+
+    print convert(varchar, getdate(), 120) + ' step3 delete farm_bazars'
+-- Create Bazars shows
+    delete from prefix1_shows.schema.farm_bazars;
+
+    print convert(varchar, getdate(), 120) + ' step4 build farm_bazars'
+    insert into prefix1_shows.schema.farm_bazars(bazar_id, prefix2_bazar_id, bazar_magic_id, bazar_showing_magic_id,
+                                                 bazar_name, bazar_host, bazar_region, status)
+    select bazar_id,
+           prefix2_bazar_id,
+           bazar_magic_id,
+           bazar_showing_magic_id,
+           bazar_name,
+           bazar_host,
+           coalesce(bazar_region, 'No Region Attributed') as bazar_region,
+           [status]
+        from prefix1_prefix2.schema.prefix2_bazar
+    union all
+    select 999,
+           999,
+           999,
+           999,
+           'No Bazar Attributed',
+           'No Bazar Attributed',
+           'No Bazar Attributed',
+           'Unknown';
+
+    print convert(varchar, getdate(), 120) + ' step5 delete farm_countries'
+-- Create Countries shows
+    delete from prefix1_shows.schema.farm_countries;
+
+    print convert(varchar, getdate(), 120) + ' step6 build farm_countries'
+    insert into prefix1_shows.schema.farm_countries
+    ( [magic_id]
+    , [showing_magic_id]
+    , [magic_name]
+    , [showing_magic_name])
+
+    select *
+        from (
+                 select distinct magic_id,
+                                 -- for some historical reason these id's are not the same as magic_id:
+                                 showing_magic_id,
+                                 replace(magic_long, 'KP', 'LP')           magic_name,
+                                 replace(showing_magic_name, 'KP', 'LP') showing_magic_name
+                     from prefix1_prefix2.schema.prefix2_magic
+                     where magic_id not in (16, 17, 18) -- excluding winds 'countries'
+                           -- add case for exceptions
+                 union all
+                 select 999, 999, 'No attributed', 'No attributed'
+             ) countries;
+
+    print convert(varchar, getdate(), 120) + ' step7 delete farm_tables_with_state'
+    -- Create all tables with state tables shows
+    delete from prefix1_shows.schema.farm_tables_with_state;
+
+    print convert(varchar, getdate(), 120) + ' step8 build farm_tables_with_state'
+    insert into prefix1_shows.schema.farm_tables_with_state(id,
+                                                             prefix2_table_id,
+                                                             tier_group,
+                                                             banana,
+                                                             title,
+                                                             status,
+                                                             preffered_fr_id,
+                                                             prefferred_fr_name,
+                                                             state_id,
+                                                             state_name,
+                                                             table_lion,
+                                                             sales_lion,
+                                                           table_created_at,
+                              industry_id)
+    select tables.table_id                          id,
+           tables.prefix2_table_id,
+           tables.tier_group,
+           tables.banana,
+           tables.table_name                        title,
+           tables.status,
+           tables.preferred_fr_id               as preffered_fr_id,
+           beerates.prefix2_fr_name              as prefferred_fr_name,
+           states.id                          as state_id,
+           states.name                        as state_name,
+           users.ar                         as table_lion,
+           tableusers.ar                     as sales_lion,
+           cast(tables.table_created_at as date) as table_created_at,
+           states.industry_id
+        from prefix1_prefix2.schema.prefix2_tables as tables with (nolock)
+                 left join prefix1_ramm.schema.axe_states as states with (nolock)
+                           on tables.state_id = states.id
+                 left join prefix1_prefix2.schema.prefix2_franchise as beerates with (nolock)
+                           on tables.preferred_fr_id = beerates.aff_id
+                 left join prefix1_ramm.schema.axe_users as users with (nolock)
+                           on tables.tiger_id = users.id
+                 left join prefix1_ramm.schema.axe_users as tableusers with (nolock)
+                           on tables.ert_id = tableusers.id;
+
+    print convert(varchar, getdate(), 120) + ' step9 delete farm_table_pieceies'
+-- Creat table piecey distribution (many to many entity)
+    delete from prefix1_shows.schema.farm_table_pieceies;
+
+    print convert(varchar, getdate(), 120) + ' step10 build farm_table_pieceies'
+    set identity_insert prefix1_shows.schema.farm_table_pieceies on
+    insert into prefix1_shows.schema.farm_table_pieceies( [prefix2_table_piecey_id]
+                                                          , [id]
+                                                          , [table_id]
+                                                          , [prefix2_table_id]
+                                                          , [piecey_id]
+                                                          , [prefix2_piecey_id])
+    select table_pieceies.prefix2_table_piecey_id,
+           table_pieceies.id,
+           table_pieceies.table_id,
+           table_pieceies.prefix2_table_id,
+           table_pieceies.piecey_id,
+           table_pieceies.prefix2_piecey_id
+        from prefix1_prefix2.schema.prefix2_table_pieceies table_pieceies with (nolock);
+    set identity_insert prefix1_shows.schema.farm_table_pieceies off
+
+    print convert(varchar, getdate(), 120) + ' step11 delete farm_pieceies_with_state'
+-- create piecey with tables entity
+    delete from prefix1_shows.schema.farm_pieceies_with_state;
+
+    print convert(varchar, getdate(), 120) + ' step12 build farm_pieceies_with_state'
+    insert into prefix1_shows.schema.farm_pieceies_with_state
+    select pieceies.prefix2_piecey_id as prefix2_piecey_id,
+           pieceies.name            as prefix2_piecey_name,
+           pieceies.status          as prefix2_piecey_status,
+           state_pieceies.name     as prefix2_state_piecey_name
+        from prefix1_prefix2.schema.prefix2_pieceies pieceies with (nolock)
+                 left join prefix1_prefix2.schema.prefix2_state_pieceies state_pieceies with (nolock)
+                           on pieceies.prefix2_state_piecey_id = state_pieceies.prefix2_state_piecey_id;
+
+-- Elixirs & shotouts
+    print convert(varchar, getdate(), 120) + ' step13 delete farm_day_differenced_elixirs_shotouts_dim';
+    --4725 2022-12-08 - Stopped aussie bazars 11,0101 from leppcy PP and shifted to Sax
+    --4878 2023-05-10 - Stopped Bazar_id 1,65 from leppcy PP and shifted to PP4
+    --4893 2023-05-25 - Stopped all other bazars as well from leppcy PP and shifted to PP4
+
+    delete from prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound and prefix2_date_id>=4893;
+
+    delete from prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim
+    where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound and prefix2_date_id>=4878 and bazar_id in (1,65);
+
+    delete from prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim
+    where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound and prefix2_date_id>=4725 and bazar_id in (11,0101,104);
+
+    --Removed code block processing data for leppcy PP and also adjusted deletion accordingly (above) as its not being updated at history cake
+    --As of now there is no open issue/difference showed for leppcy PP history,
+    --However if any such things comes up even in the future, this code block can be taken from git for one time push after prior cake fix
+
+    print convert(varchar, getdate(), 120) + ' step14 build farm_day_differenced_elixirs_shotouts_dim';
+
+    with sax_pp4 as (
+        select *
+        from prefix1_shows.schema.sax_pp4_differenced
+        where (source_name = 'sax' and bazar_id in (11,0101,104) and prefix2_date_id>=4725 and prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound)
+        or (source_name = 'pp4' and bazar_id in (1,65) and prefix2_date_id>=4878 and prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound)
+        or (source_name = 'pp4' and prefix2_date_id>=4893 and prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound)
+    )
+
+    insert into prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim (
+     [prefix2_date_id]
+        , [bazar_id]
+        , [table_id]
+        , [property_id]
+        , [source_name]
+        , [iron_path]
+        , [prefix2_table_id]
+        , [channel]
+        , [device]
+        , [magic]
+        , [elixirs]
+        , [filmrate]
+        , [films]
+        , [entries]
+        , [avg_time_on_iron]
+        , [total_icecream]
+        , [unique_icecream]
+        , [elixirs_with_event]
+        , [icecream_perelixir_withevent]
+        , [iron_views]
+    )
+    select prefix2_date_id,
+           bazar_id,
+           coalesce(table_id, -1) as table_id,
+           property_id,
+           source_name,
+           iron_path,
+           prefix2_table_id,
+           channel,
+           device,
+           magic,
+           elixirs,
+           filmrate,
+           films,
+           entries,
+           avg_time_on_iron,
+           total_icecream,
+           unique_icecream,
+           elixirs_with_event,
+           icecream_perelixir_withevent,
+           iron_views
+    from sax_pp4 with (nolock)
+
+-- Now what we do is to generate a AGG version for the new model that grabs aswell the tableid from the manuals.
+-- this is supposed to be a replica from the procedure [schema].[updating_AGG_show]
+-- Hopefully eventually we just build the searching directly from there.
+
+    delete from prefix1_shows.schema.farm_fr_searching_merged_show where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound;
+
+    print convert(varchar, getdate(), 120) + ' step15 build farm_fr_searching_merged_show'
+    insert into prefix1_shows.schema.farm_fr_searching_merged_show (
+        bazar_id,
+        fr_name,
+        table_name,
+        exchangedate,
+        ppin,
+        shell_value,
+        showing_ppin,
+        showing_shell_value,
+        showing_bomby,
+        status,
+        [source],
+        brzo_flag,
+        bazar_name,
+        magic_id,
+        prefix2_date_id,
+        cnt_group,
+        prefix2_table_id,
+        ticket_id,
+        source_ppin,
+        source_bomby,
+        source_shell_value,
+        cnt_zero_ppins
+    )
+    select coalesce(bazar_id, 999)                                                             as bazar_id,
+           fr_name,
+           table_name,
+           exchangedate,
+           sum(ppin)                                                                    as ppin,
+           sum(shell_value)                                                                   as shell_value,
+           sum(showing_ppin)                                                          as showing_ppin,
+           sum(showing_shell_value)                                                         as showing_shell_value,
+           showing_bomby,
+           [status],
+           via                                                                                as [source],
+           brzo_flag,
+           bazar_name,
+           magic_id,
+           prefix2_date_id,
+           count(*)                                                                           as cnt_group, --number of exchange used per group by
+           coalesce(prefix2_table_id, 0)                                                           as prefix2_table_id,
+           ticket_id,
+           sum(source_ppin)                                                             as source_ppin,
+           source_bomby,
+           sum(source_shell_value)                                                            as source_shell_value,
+           sum(case when source_ppin = 0 and source_shell_value >= 1 then 1 else 0 end) as cnt_zero_ppins
+        from (
+                 select nukes.bazar_id                                       as bazar_id,
+                        nukes.fr_name                                       as fr_name,
+                        s.table_name,
+                        nukes.exchange_date         as exchangedate,
+                        nukes.standard_ppin                           as ppin,
+                        nukes.source_ppin                             as source_ppin,
+         nukes.source_bomby                               as source_bomby,
+                        0                                                 as shell_value,
+                        0                                                 as source_shell_value,
+                        0                                                 as showing_ppin,
+                        0                                                 as showing_shell_value,
+                        nukes.source_bomby                               as showing_bomby,
+                        nukes.status,
+                        'nukes ppins'                                 as via,
+                        0                                                 as brzo_flag,
+                        c.bazar_name                                       as bazar_name,
+                        c.bazar_magic_id                                 as magic_id,
+                        datediff(day, '2009-12-31', nukes.exchange_date) as prefix2_date_id,
+                        s.prefix2_table_id,
+                        null                                                 ticket_id
+                     from prefix1_prefix2.schema.prefix2_ext_nukes_ppin nukes
+                              left join prefix1_prefix2.schema.prefix2_bazar as c
+                                        on nukes.bazar_id = c.bazar_id
+                              left join prefix1_prefix2.schema.prefix2_tables s with (nolock)
+                                        on nukes.fuzzy_table_id = s.table_id
+                     where datediff(day, '2009-12-31', nukes.exchange_date) >= @extract_date_id_lowerbound
+                       and datediff(day, '2009-12-31', nukes.exchange_date) <= @extract_date_id_upperbound
+                 union all
+
+                 select a_me.lookedup_bazar_id                             as bazar_id,
+                        a_me.standard_fr_name                             as fr_name,
+                        a_me.table_name,
+                        a_me.exchangedate,
+                        a_me.standard_ppin                          as ppin,
+                        a_me.standard_ppin                          as source_ppin,
+                        'UNO'                                             as source_bomby,
+                        a_me.standard_shell_value                         as shell_value,
+                        a_me.standard_shell_value                         as source_shell_value,
+                        a_me.showing_ppin,
+                        a_me.showing_shell_value,
+                        c.showing_bomby                              as showing_bomby,
+                        a_me.status,
+                        'manual exchanges'                             as via,
+                        a_me.brzo_flag,
+                        a_me.bazar_name                                    as bazar_name,
+                        c.bazar_magic_id                                 as magic_id,
+                        datediff(day, '2009-12-31', a_me.exchangedate) as prefix2_date_id,
+                        a_me.prefix2_table_id,
+                        null                                                 ticket_id
+                     from prefix1_prefix2.schema.prefix2_fr_manual_ppin a_me
+                              left join prefix1_prefix2.schema.prefix2_bazar as c
+                                        on a_me.lookedup_bazar_id = c.bazar_id
+                              left join prefix1_prefix3.schema.rrr_bombies as b
+                                        on lower(c.showing_bomby) = b.bomby
+                                            and cast(a_me.exchangedate as date) = b.date
+                     where datediff(day, '2009-12-31', a_me.exchangedate) >= @extract_date_id_lowerbound
+                       and datediff(day, '2009-12-31', a_me.exchangedate) <= @extract_date_id_upperbound
+                       and a_me.lookedup_bazar_id is not null
+
+                 union all
+
+                 -- V1 with bazar_id
+                 select a_vws.bazar_id                          as bazar_id,
+                        case
+                            --when a_vws.brzo_flag in (1,2)
+    --then 'BRZO'
+                            when a_vws.fr_name like 'rome%'
+                                then 'rome'
+                            else a_vws.fr_name
+                            end                                as fr_name,
+                        a_vws.table                             as table_name,
+                        a_vws.exchangedate                  as exchangedate,
+                        isnull(a_vws.standard_ppin, '0') as ppin,
+                        isnull(a_vws.source_ppin, '0')   as source_ppin,
+                        a_vws.origano_bomby             as source_bomby,
+                        isnull(a_vws.shell_value, '0')         as shell_value,
+                        isnull(a_vws.source_shell_value, '0')  as source_shell_value,
+                        isnull(a_vws.showing_ppin, '0'),
+                        isnull(a_vws.showing_shell_value, '0'),
+                        a_vws.showing_comm_bomby          as showing_bomby,
+                        case
+                            when a_vws.status like 'canceled'
+                                then 'cancelled'
+                            else a_vws.status
+                            end                                as [status],
+                        'V1 with bazar_id'                      as via,
+                        a_vws.brzo_flag,
+                        a_vws.webbazar                          as bazar_name,
+                        a_vws.bazar_magic_id                  as magic_id,
+                        a_vws.prefix2_date_id,
+                        a_vws.prefix2_table_id,
+                        a_vws.ticket_id                        as ticket_id
+                     from prefix1_shows.schema.fr_searching_pol_show a_vws
+                     where a_vws.prefix2_date_id >= @extract_date_id_lowerbound and a_vws.prefix2_date_id <= @extract_date_id_upperbound
+                       and a_vws.bazar_id is not null
+                       and a_vws.bazar_id != 999
+
+                 union all
+                 -- v1 with looked up bazar_id
+                 select b_vls.bazar_id                          as bazar_id,
+                        case
+                            --when a_vls.brzo_flag in (1,2)
+                            --then 'brzo'
+                            when a_vls.fr_name like 'rome%' then 'rome'
+                            else a_vls.fr_name
+                            end                                as fr_name,
+                        a_vls.table                             as table_name,
+                        a_vls.exchangedate                  as exchangedate,
+                        isnull(a_vls.standard_ppin, '0') as ppin,
+                        isnull(a_vls.source_ppin, '0')   as source_ppin,
+                        a_vls.origano_bomby             as source_bomby,
+                        isnull(a_vls.shell_value, '0')         as shell_value,
+                        isnull(a_vls.source_shell_value, '0')  as source_shell_value,
+                        isnull(a_vls.showing_ppin, '0'),
+                        isnull(a_vls.showing_shell_value, '0'),
+                        c.showing_bomby,
+                        case
+                            when a_vls.status like 'canceled'
+                                then 'cancelled'
+                            else a_vls.status
+                            end                                as [status],
+                        'V1 lookup bazar_id'                    as via,
+                        a_vls.brzo_flag,
+  a_vls.webbazar                          as bazar_name,
+                        a_vls.bazar_magic_id                  as magic_id,
+                        a_vls.prefix2_date_id,
+                        a_vls.prefix2_table_id,
+                        a_vls.ticket_id       as ticket_id
+                     from prefix1_shows.schema.fr_searching_pol_show a_vls with (nolock)
+                              left join prefix1_prefix2.schema.prefix2_webbazar_lookup b_vls with (nolock)
+                                        on a_vls.webbazar = b_vls.original_name
+                              left join prefix1_prefix2.schema.prefix2_bazar as c with (nolock)
+                                        on b_vls.bazar_id = c.bazar_id
+
+                     where a_vls.prefix2_date_id >= @extract_date_id_lowerbound and a_vls.prefix2_date_id <= @extract_date_id_upperbound
+                       and (
+                             a_vls.bazar_id is null
+                             or a_vls.bazar_id = 999
+                         ) -- we have the bazar id for the others!
+                 --and b_vls.standard_name is not null -- only the ones mapped successfully
+             ) as merge_trans
+        group by bazar_id,
+                 fr_name,
+                 table_name,
+                 prefix2_table_id,
+                 exchangedate,
+                 source_bomby,
+                 status,
+                 showing_bomby,
+                 brzo_flag,
+                 bazar_name,
+                 magic_id,
+                 prefix2_date_id,
+                 via,
+                 ticket_id;
+
+
+    print convert(varchar, getdate(), 120) +
+          ' step16 update missing showing_ppin farm_fr_searching_merged_show'
+    --- What is this mess? - we need to clean up and only leav a select for this entity. - Somebody
+-----------update missing showing_ppin
+    update r
+    set showing_ppin = cast(r.ppin * (
+        case
+            when c.value is not null
+                then c.value
+            when r.showing_bomby = 'UNO'
+                then 1.
+            else 0.
+            end) as decimal(18, 2))
+        from prefix1_shows.schema.farm_fr_searching_merged_show as r
+                 left join prefix1_prefix3.schema.rrr_bombies as c with (nolock)
+                           on lower(r.showing_bomby) = c.bomby
+                               and cast(r.exchangedate as date) = c.date
+        where r.prefix2_date_id >= @extract_date_id_lowerbound and r.prefix2_date_id <= @extract_date_id_upperbound
+          and r.ppin <> 0
+          and r.showing_ppin = 0
+          and r.showing_bomby is not null;
+
+    print convert(varchar, getdate(), 120) +
+          ' step17 update missing showing_shell_value farm_fr_searching_merged_show'
+---------------update missing showing_shell_value
+    update r
+    set showing_shell_value = cast(r.shell_value * (
+        case
+            when c.value is not null
+                then c.value
+            when r.showing_bomby = 'UNO'
+                then 1.
+            else 0.
+            end) as decimal(18, 2))
+        from prefix1_shows.schema.farm_fr_searching_merged_show as r
+                 left join prefix1_prefix3.schema.rrr_bombies as c with (nolock)
+                           on lower(r.showing_bomby) = c.bomby
+                               and cast(r.exchangedate as date) = c.date
+        where r.prefix2_date_id >= @extract_date_id_lowerbound and r.prefix2_date_id <= @extract_date_id_upperbound
+          and r.shell_value <> 0
+          and r.showing_shell_value = 0
+          and r.showing_bomby is not null;
+
+    print convert(varchar, getdate(), 120) + ' step18 delete farm_fr_searching_merged_show_bombies'
+-- Building the searching aggrepption out of the merged
+    delete from prefix1_shows.schema.farm_fr_searching_merged_show_bombies where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound;
+
+    print convert(varchar, getdate(), 120) + ' step19 build farm_fr_searching_merged_show_bombies'
+    insert into prefix1_shows.schema.farm_fr_searching_merged_show_bombies
+    ( [uno_ppin_day]
+    , [uno_shell_value_day]
+    , [dos_ppin_day]
+    , [dos_shell_value_day]
+    , [tres_ppin_day]
+    , [tres_shell_value_day]
+    , [brl_ppin_day]
+    , [brl_shell_value_day]
+    , [uno_ppin_nobrzo_day]
+    , [uno_shell_value_nobrzo_day]
+    , [dos_ppin_nobrzo_day]
+    , [dos_shell_value_nobrzo_day]
+    , [tres_ppin_nobrzo_day]
+    , [tres_shell_value_nobrzo_day]
+    , [brl_ppin_nobrzo_day]
+    , [brl_shell_value_nobrzo_day]
+    , [STATUS]
+    , [fr_name]
+    , [prefix2_table_id]
+    , [bazar_id]
+    , [prefix2_date_id]
+    , [exchangedate]
+    , [exchanges]
+    , [brzo_flag]
+    , [ticket_id]
+    , [zero_ppin_exchanges])
+    select
+
+        -- UNO
+        cast(searching_with_brzos.uno_ppin_day as decimal(18, 2))  as uno_ppin_day,
+        cast(searching_with_brzos.uno_shell_value_day as decimal(18, 2)) as uno_shell_value_day,
+        -- DOS
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'DOS' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.dos as decimal(18, 2))
+            end                                                      as dos_ppin_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'DOS' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.dos as decimal(18, 2))
+            end                                                      as dos_shell_value_day,
+        -- TRES
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'TRES' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.tres as decimal(18, 2))
+            end                                                      as tres_ppin_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'TRES' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.tres as decimal(18, 2))
+            end                                                      as tres_shell_value_day,
+        -- BRL
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'BRL' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.brl as decimal(18, 2))
+            end                                                      as brl_ppin_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'BRL' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.brl as decimal(18, 2))
+            end                                                      as brl_shell_value_day,
+        -- No BRZOS UNO
+        cast(searching_with_brzos.uno_ppin_day as decimal(18, 2))  as uno_ppin_nobrzo_day,
+        cast(searching_with_brzos.uno_shell_value_day as decimal(18, 2)) as uno_shell_value_nobrzo_day,
+        -- No BRZOS DOS
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'DOS' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.dos as decimal(18, 2))
+            end                                                      as dos_ppin_nobrzo_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'DOS' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.dos as decimal(18, 2))
+            end                                                      as dos_shell_value_nobrzo_day,
+        -- No BRZOS TRES
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'TRES' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.tres as decimal(18, 2))
+            end                                                      as tres_ppin_nobrzo_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'TRES' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.tres as decimal(18, 2))
+            end                                                      as tres_shell_value_nobrzo_day,
+        -- No BRZOS BRL
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'BRL' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.brl as decimal(18, 2))
+            end                                                      as brl_ppin_nobrzo_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'BRL' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.brl as decimal(18, 2))
+            end                                                      as brl_shell_value_nobrzo_day,
+        -- Rest of attributes
+        searching_with_brzos.status,
+        searching_with_brzos.fr_name,
+        searching_with_brzos.prefix2_table_id,
+        searching_with_brzos.bazar_id,
+        searching_with_brzos.prefix2_date_id,
+        searching_with_brzos.exchangedate,
+        searching_with_brzos.exchanges,
+        searching_with_brzos.brzo_flag,
+        coalesce(searching_with_brzos.ticket_id, -1) as ticket_id,
+        searching_with_brzos.zero_ppin_exchanges
+
+        from (
+                 select sum(a.ppin)                                as uno_ppin_day,
+                        sum(shell_value)                  as uno_shell_value_day,
+                        sum(a.source_ppin)                         as source_ppin,
+                        sum(a.source_shell_value)                        as source_shell_value,
+                        a.source_bomby,
+                        a.status,
+                        a.fr_name,
+                        a.prefix2_table_id,
+                        a.bazar_id,
+                        a.prefix2_date_id,
+                        a.brzo_flag,
+                        a.ticket_id,
+                        cast(cast(a.exchangedate as date) as varchar) as exchangedate,
+                        sum(a.cnt_group)                                 as exchanges,
+                        sum(a.cnt_zero_ppins)                      as zero_ppin_exchanges
+                     from prefix1_shows.schema.farm_fr_searching_merged_show a with (nolock)
+                     where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound
+                     group by a.source_bomby,
+                              a.status,
+                              a.fr_name,
+                              a.prefix2_table_id,
+                              a.bazar_id,
+                              a.prefix2_date_id,
+                              a.brzo_flag,
+                              a.ticket_id,
+                              cast(cast(a.exchangedate as date) as varchar)
+             ) searching_with_brzos
+                 left join
+             (
+                 select dates.date,
+                        tres.value as tres,
+                        dos.value as dos,
+                        brl.value as brl
+                     from (
+                              select distinct date
+                                  from prefix1_prefix3.schema.rrr_bombies with (nolock)
+                          ) dates
+                              left join (
+                         select date, bomby, value
+                             from prefix1_prefix3.schema.rrr_bombies with (nolock)
+                             where bomby like 'tres'
+                     ) tres
+                                        on dates.date = tres.date
+                              left join (
+                         select date, bomby, value
+                             from prefix1_prefix3.schema.rrr_bombies
+                             where bomby like 'dos'
+                     ) dos
+                                        on dates.date = dos.date
+                              left join (
+                         select date, bomby, value
+                             from prefix1_prefix3.schema.rrr_bombies
+                             where bomby like 'brl'
+                     ) brl
+                                        on dates.date = brl.date
+             ) bombies on searching_with_brzos.exchangedate = bombies.date
+
+
+    print convert(varchar, getdate(), 120) + ' step20 build farm_fr_searching_merged_show_bombies'
+    -- We add to the searching entity table all the missing rubrik from the elixirs in shell to add an Beerate Party Name.
+-- This way when people try to calculate something in Pwb we wont see empty DPIs
+    insert into prefix1_shows.schema.farm_fr_searching_merged_show_bombies(status,
+                                                                               fr_name,
+                                                                               prefix2_table_id,
+                                                                               bazar_id,
+                                                                               prefix2_date_id,
+                                                                               exchanges,
+                                                                               brzo_flag,
+                                                                               ticket_id)
+    select distinct 'rrrirmed' status,
+                    case
+                        when (tables.prefferred_fr_name is null)
+                            --or tables.prefferred_fr_name like 'uncompensated')
+                            then 'Not assigned'
+                        else lower(tables.prefferred_fr_name)
+                        end as  fr_name,
+                    a.prefix2_table_id,
+                    a.bazar_id,
+                    a.prefix2_date_id,
+                    0           exchanges,
+                    0           brzo_flag,
+                    -1          ticket_id
+        from prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim a with (nolock)
+                 left join prefix1_shows.schema.farm_tables_with_state tables with (nolock)
+                           on a.prefix2_table_id = tables.prefix2_table_id
+        where a.prefix2_date_id >= @extract_date_id_lowerbound and a.prefix2_date_id <= @extract_date_id_upperbound
+          and not exists(
+                select null
+                    from prefix1_shows.schema.farm_fr_searching_merged_show_bombies b with (nolock)
+                    where b.prefix2_date_id >= @extract_date_id_lowerbound and b.prefix2_date_id <= @extract_date_id_upperbound
+                      and a.prefix2_date_id = b.prefix2_date_id
+                      and a.prefix2_table_id = b.prefix2_table_id
+                      and a.bazar_id = b.bazar_id
+            );
+
+    print convert(varchar, getdate(), 120) + ' step21 delete farm_all_key_rubrik'
+    delete
+        from prefix1_shows.schema.farm_all_key_rubrik
+        where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound;
+
+    print convert(varchar, getdate(), 120) + ' step22 build farm_all_key_rubrik'
+    -- get all possible rubrik from searching, elixirs and shotouts
+    -- so if data is missing in one table, the rest of the data is not missed.
+    -- to avoid surplus data, logic is implemented in smt appinst each join
+    -- of searching, elixirs and shotouts [Lll, 2020-12-23]
+    insert into prefix1_shows.schema.farm_all_key_rubrik
+    (prefix2_date_id, prefix2_date, bazar_id, prefix2_table_id, bazar_magic_id, prefix2_bazar_id, table_id,
+     ticket_id)
+    select all_rubrik.prefix2_date_id,
+           dates.prefix2_date,
+           all_rubrik.bazar_id,
+           all_rubrik.prefix2_table_id,
+           bazars.bazar_magic_id,
+           bazars.prefix2_bazar_id,
+           coalesce(tables.table_id, -1) as table_id,
+           all_rubrik.ticket_id
+        from (
+                 select prefix2_date_id, bazar_id, prefix2_table_id, coalesce(ticket_id, -1) as ticket_id
+                     from prefix1_shows.schema.farm_fr_searching_merged_show_bombies with (nolock)
+                     where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound
+                 union
+                 select prefix2_date_id, bazar_id, prefix2_table_id, -1 as ticket_id
+                     from prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim with (nolock)
+                     where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound
+                 union
+                 select prefix2_date_id, bazar_id, prefix2_table_id, coalesce(ticket_id, -1) as ticket_id
+                     from prefix1_shows.schema.farm_shotouts_show with (nolock)
+                     where prefix2_date_id >= @extract_date_id_lowerbound and prefix2_date_id <= @extract_date_id_upperbound
+             ) all_rubrik
+                 left join prefix1_prefix2.schema.prefix2_date dates with (nolock)
+                           on all_rubrik.prefix2_date_id = dates.prefix2_date_id
+                 left join prefix1_prefix2.schema.prefix2_bazar bazars with (nolock)
+                           on all_rubrik.bazar_id = bazars.bazar_id
+                 left join prefix1_prefix2.schema.prefix2_tables tables with (nolock)
+                           on all_rubrik.prefix2_table_id = tables.prefix2_table_id;
+
+    print convert(varchar, getdate(), 120) + 'Frog Rebuild Finished'
+end

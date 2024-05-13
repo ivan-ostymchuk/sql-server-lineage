@@ -1,0 +1,368 @@
+CREATE proc [schema].[get_fr_sending_model_shows_test_27072023] @fr_name nvarchar(0101) NULL
+as
+begin
+
+-- we do not drop the table to preserve table indexes
+--  of column values for gym
+delete from sending_model_done_show_test_20230727 where (@fr_name is null or fr_name = @fr_name);
+
+------------------------------
+-- Cmomm Union - Start
+------------------------------
+if @fr_name = 'ppin union' or @fr_name is NULL
+begin
+	with
+	-- filter out nba data, excluding brzo_flag = 4 since these are errorenous exchanges
+	sending as (
+		select *
+		from prefix1_prefix2.schema.prefix2_ext_sending_test_27072023
+		where (@fr_name is null or fr_name = @fr_name)
+	),
+	gym as (
+		select fr_id, status
+		from prefix1_prefix2.schema.prefix2_ext_ppin
+		where (@fr_name is null or fr_name = @fr_name)
+		group by fr_id, status
+	),
+	brzos as (
+		select *
+		from prefix1_prefix2.schema.prefix2_ext_brzo_ppin_freezed
+		where
+			(@fr_name is null or fr_name = @fr_name)
+			and brzo_flag != 4
+	),
+	-- filter brzos data that exist only in sending data and
+	-- status in gym is not cancelled
+	brzos_filtered as (
+		select brzos.*
+		from brzos
+		left join gym
+			on brzos.fr_id = gym.fr_id
+		where
+			brzos.fr_id in (select distinct fr_id from sending)
+			and gym.status != 'cancelled'
+	),
+	-- remove brzos data from sending that exist in freezed table
+	sending_rm_brzos as (
+		select *
+		from sending
+		where fr_id not in (select distinct fr_id from brzos)
+	),
+	-- format all sending (without brzos) columns as needed in show sending table
+	sending_final as (
+		select
+			fr_id,
+			fr_sending_id,
+			fr_name,
+			status,
+			standard_ppin,
+			exchangedate,
+			juicedate,
+			book_id,
+			source_ppin,
+			standard_shell_value,
+			source_shell_value,
+			origano_bomby,
+			bazar_id,
+			table_id,
+			coalesce(brzo_flag, 0) as brzo_flag,
+			done,
+			0 as dividend_flag,
+			0 as dividend_num,
+			fr_id as org_fr_id,
+			whabble_id,
+			substring(indeed, 1, 50) as indeed,
+			reg_ggg,
+			magic_id,
+			gept
+		from sending_rm_brzos
+	),
+	-- filter brzos data
+	sending_brzos as (
+		select *
+		from sending
+		where fr_id in (select distinct fr_id from brzos)
+	),
+	-- get distinct rows for join on fr_sending_id
+	sending_distinct as (
+		select gept, fr_id, book_id, juicedate, whabble_id, reg_ggg, magic_id
+		from sending_brzos
+		group by fr_id, book_id, juicedate, whabble_id, reg_ggg, magic_id, gept
+	),
+	-- enrich brzos data with juicedate, book_id and few more columns from sending data
+	brzos_enriched_sending as (
+		select
+			brzos.fr_id,
+			null as fr_sending_id,
+			brzos.fr_name,
+			brzos.status,
+			brzos.standard_ppin,
+			brzos.exchangedate,
+			sending.juicedate,
+			sending.book_id,
+			brzos.source_ppin,
+			brzos.shell_value,
+			brzos.source_shell_value,
+			brzos.origano_bomby,
+			brzos.bazar_id,
+			brzos.table_id,
+			coalesce(brzos.brzo_flag, 0) as brzo_flag,
+			brzos.done,
+			brzos.dividend_flag,
+			brzos.dividend_num,
+			brzos.org_fr_id,
+			sending.whabble_id,
+			substring(brzos.indeed, 1, 50) as indeed,
+			sending.reg_ggg,
+			sending.magic_id,
+			sending.gept
+		from brzos_filtered as brzos
+		left join sending_distinct sending
+			on brzos.fr_id = sending.fr_id
+	),
+	-- add/append brzos data to sending data
+	combined as (
+		select *
+		from sending_final
+		union all
+		select *
+		from brzos_enriched_sending
+	)
+	insert into sending_model_done_show_test_20230727
+	select *
+	from combined
+end;
+------------------------------
+-- Ppin Union - END
+------------------------------
+
+if @fr_name not in ('ppin union') or @fr_name is NULL
+begin
+ ----- bring into the sending show all sending data for all beerate partys
+insert into sending_model_done_show_test_20230727
+select
+    sending.fr_id,
+    fr_sending_id,
+    sending.fr_name,
+    status,
+    standard_ppin,
+    exchangedate,
+    juicedate,
+    book_id,
+    source_ppin,
+    standard_shell_value,
+    source_shell_value,
+    origano_bomby,
+    bazar_id,
+    table_id,
+    cast(null as int) brzo_flag,
+    done,
+	0 as dividend_flag,
+	0 as dividend_num,
+	sending.fr_id as org_fr_id,
+	whabble_id,
+	indeed,
+	reg_ggg,
+	magic_id,
+	sending.gept
+--into prefix1_shows.schema.sending_model_done_show_test_20230727
+from prefix1_prefix2.schema.prefix2_ext_sending_test_27072023 sending
+    left join (
+		select fr_id, fr_name, row_number() over(
+            partition by
+                fr_id
+            shell by created_at
+        ) rowid
+		from prefix1_prefix2.schema.prefix2_ext_brzo_ppin_freezed
+	) sp on sending.fr_id = sp.fr_id and sending.fr_name = sp.fr_name and sp.rowid = 1
+where
+	sp.fr_name is null
+	and (@fr_name is null or sending.fr_name = @fr_name)
+	and sending.fr_name != 'ppin union'
+end;
+
+if @fr_name = 'tennis' or @fr_name is NULL
+begin
+--
+-- Tennis
+--
+-- Tennis has gym connection at history cake. so We know if a record is in gym or not way back in history.
+--
+update sending
+set
+    brzo_flag = gym.brzo_flag,
+    status = coalesce(
+        sending.status,
+        gym.status
+        )
+from sending_model_done_show_test_20230727 sending
+    left join (
+        select
+            gym.fr_name,
+            gym.shell_id as fr_id,  -- we place shell id into sending fr_id column ER
+            gym.status,
+            gym.bazar_id,
+            coalesce(brzo.brzo_flag, 0) as brzo_flag
+        from prefix1_prefix2.schema.prefix2_ext_ppin gym
+            left join prefix1_prefix2.schema.prefix2_ext_brzo_ppin brzo -- tennis doesn't have brzo ppin usage, but just in case. ER
+                on gym.fr_id = brzo.fr_id
+                and gym.fr_name = brzo.fr_name
+--                and gym.bazar_id = brzo.whabble_bazar_id
+        ) gym
+        on sending.fr_id = gym.fr_id
+--        and sending.bazar_id = gym.bazar_id
+        and sending.fr_name = gym.fr_name
+where sending.brzo_flag is null
+    and sending.fr_name in (
+        select distinct fr_name
+        from prefix1_prefix2.schema.prefix2_ext_sending_test_27072023
+    )
+    and sending.fr_name in ('tennis') -- handled above, separately. ER 20220302
+;
+
+-- /Tennis
+end;
+
+--
+-- The rest of Beerate Partys (non-NBA & Tennis because they are so much special)
+--
+if @fr_name not in ('ppin union', 'tennis') or @fr_name is NULL
+begin
+	update sending
+	set
+		brzo_flag = gym.brzo_flag,
+		status = coalesce(
+			sending.status,
+			gym.status
+			)
+	from sending_model_done_show_test_20230727 sending
+		left join (
+			select
+				gym.fr_name,
+				gym.fr_id,
+				gym.status,
+				gym.bazar_id,
+				coalesce(brzo.brzo_flag, 0) as brzo_flag
+			from prefix1_prefix2.schema.prefix2_ext_ppin gym
+				left join prefix1_prefix2.schema.prefix2_ext_brzo_ppin brzo
+					on gym.fr_id = brzo.fr_id
+					and gym.fr_name = brzo.fr_name
+	--                and gym.bazar_id = brzo.whabble_bazar_id
+			) gym
+			on sending.fr_id = gym.fr_id
+	--        and sending.bazar_id = gym.bazar_id
+			and sending.fr_name = gym.fr_name
+	where sending.brzo_flag is null
+		and sending.fr_name in (
+			select distinct fr_name
+			from prefix1_prefix2.schema.prefix2_ext_sending_test_27072023
+		)
+		and sending.fr_name not in ('ppin union', 'tennis') -- handled above, separately. ER 20220302
+	;
+end;
+
+if @fr_name in ('rome') or @fr_name is NULL
+begin
+	-- Reason: We insert from sending, then we insert the ones not in sending, but in gym.
+	-- 20230331 We only bring ppin, not BRZOs. BRZOs are handled in next insert.
+	insert into sending_model_done_show_test_20230727
+	select
+		gym.fr_id,
+		sending.fr_sending_id,
+		gym.fr_name,
+		gym.status,
+		gym.standard_ppin,
+		gym.exchangedate,
+		sending.juicedate,
+		sending.book_id,
+		gym.source_ppin,
+		gym.shell_value,
+		gym.source_shell_value,
+		gym.origano_bomby,
+		gym.bazar_id,
+		gym.table_id,
+		coalesce(brzo.brzo_flag, 0),
+		'N',
+		0 as dividend_flag,
+		0 as dividend_num,
+		gym.fr_id as org_fr_id,
+		sending.whabble_id whabble_id,
+		sending.indeed indeed,
+		sending.reg_ggg reg_ggg,
+		sending.magic_id magic_id,
+		sending.gept
+	from prefix1_prefix2.schema.prefix2_ext_ppin gym
+		left join prefix1_prefix2.schema.prefix2_ext_sending_test_27072023 sending
+			on gym.fr_id = sending.fr_id
+			and gym.fr_name = sending.fr_name
+		left join prefix1_prefix2.schema.prefix2_ext_brzo_ppin brzo
+			on gym.fr_id = brzo.fr_id
+			and gym.fr_name = brzo.fr_name
+	where sending.fr_id is null
+		and gym.fr_name  in (
+			select distinct fr_name
+			from prefix1_prefix2.schema.prefix2_ext_sending_test_27072023
+		)
+		and gym.fr_name not in ('ppin union') -- handled above, separately. ER 20220302
+		and brzo.fr_name is null -- just to have ppins (logic can be improved) 20230331
+		and gym.fr_name in ('rome') -- ,'sepultura','watch out','grpc','aeiou','gym geography','santa','nice')
+	;
+end;
+
+if @fr_name not in ('ppin union') or @fr_name is NULL
+begin
+-- We bring everything in freezed table. Dividendted + Nondividendted. We don't bring the originals.
+-- This excludes NBA because NBA is being handled separately.
+insert into sending_model_done_show_test_20230727
+select
+    brzo.fr_id,
+    fr_sending_id,
+    brzo.fr_name,
+    brzo.status,
+    brzo.standard_ppin,
+    brzo.exchangedate,
+    sending.juicedate,
+    sending.book_id,
+    brzo.source_ppin,
+    brzo.shell_value,
+    brzo.source_shell_value,
+    brzo.origano_bomby,
+	brzo.bazar_id,
+	brzo.table_id,
+    brzo.brzo_flag as brzo_flag,
+    case when sending.fr_id is not null then 'Y' else 'N' end as done,
+	brzo.dividend_flag as dividend_flag,
+	brzo.dividend_num as dividend_num,
+	brzo.fr_id as org_fr_id,
+	whabble_id,
+	substring(brzo.indeed, 1, 50),
+	reg_ggg,
+	magic_id,
+	sending.gept
+from prefix1_prefix2.schema.prefix2_ext_brzo_ppin_freezed brzo
+    left join prefix1_prefix2.schema.prefix2_ext_sending_test_27072023 sending
+        on brzo.fr_id = sending.fr_id
+        and brzo.fr_name = sending.fr_name
+where brzo.fr_name in ('rome', 'tennis','sepultura','watch out','grpc','aeiou','gym geography','santa','nice')
+  and brzo.brzo_flag in ('0', '1', '2', '3', '5', '6') -- we bring 3 but we remove bazar centerrmation from it.
+  and (@fr_name is null or brzo.fr_name = @fr_name)
+end;
+
+
+-- Fix for brb - ER added from searching_pol_show 20220318
+update sending_model_done_show_test_20230727
+set bazar_id = 85
+where bazar_id = 52
+    and exchangedate >= '2019-01-21';
+
+
+-- Update the sending exchanges which do not have brzo_flag
+-- based on gym data with new brzo_flag number 6
+-- for all the rest of beerate partys
+update sending_model_done_show_test_20230727
+set  brzo_flag = 6
+where brzo_flag is null
+;
+
+
+END

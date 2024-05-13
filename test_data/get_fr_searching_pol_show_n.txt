@@ -1,0 +1,296 @@
+create procedure [schema].[get_fr_searching_pol_show_n] @@date_limit_number int=5, @date_limit_upperbound int=0
+as
+begin
+    declare @extract_timestamp_lowerbound as datetime2;
+    set @extract_timestamp_lowerbound = cast(getdate() - @@date_limit_number as date);
+
+    declare @extract_timestamp_upperbound as datetime2;
+    set @extract_timestamp_upperbound = cast(getdate() - @date_limit_upperbound as date);
+
+    delete from prefix1_shows.schema.fr_searching_pol_show
+	where exchangedate >= @extract_timestamp_lowerbound
+	and exchangedate <= @extract_timestamp_upperbound;
+
+    insert into prefix1_shows.schema.fr_searching_pol_show
+    ( [standard_ppin]
+    , [status]
+    , [fr_name]
+    , [prefix2_aff_id]
+    , [bazar_id]
+    , [prefix2_table_id]
+    , [shell_value]
+    , [webbazar]
+    , [exchangedate]
+    , [prefix2_date_id]
+    , [table]
+    , [bazar_magic_id]
+    , [standard_comm_bomby]
+    , [showing_ppin]
+    , [showing_comm_bomby]
+    , [showing_shell_value]
+    , [brzo_flag]
+    , [fr_id]
+    , [done]
+    , [juicedate]
+    , [book_id]
+    , [source_ppin]
+    , [source_shell_value]
+    , [origano_bomby]
+    , [ticket_id]
+    , [dividend_flag]
+    , [dividend_num]
+    , [org_fr_id]
+    , [landing_iron]
+    , [shotout_iron_type]
+    , [shotout_iron_id]
+    , [shotout_iron_type_id])
+
+    select a.standard_ppin,
+           a.status,
+           a.fr_name,
+           a.prefix2_aff_id,
+           case
+               when a.bazar_id = 999
+                   and a.fr_name like 'tennis'
+                   then a.whabble_bazar_id
+               else a.bazar_id
+               end                  as bazar_id,
+           a.prefix2_table_id,
+           a.shell_value,
+           case
+               when a.bazar_id = 999
+                   and (a.whabble_bazar_id = '' or a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+                   then a.bazar_name_scrambled
+               else c.bazar_host
+               end                  as webbazar,
+           a.exchangedate,
+           datediff(day, '2009-12-31', exchangedate),
+           case
+               when a.bazar_id = 999 or a.merce_table_id is null
+                   then a.geptd
+               else s.table_name
+               end                  as table,
+           c.bazar_magic_id,
+           a.standard_comm_bomby,
+           a.showing_ppin,
+           a.showing_comm_bomby,
+           a.showing_shell_value,
+           '0'                      as brzo_flag,
+           a.fr_id                  as fr_id,
+           a.done                   as done,
+           a.juicedate            as juicedate,
+           a.book_id             as book_id,
+           a.source_ppin      as source_ppin,
+           a.source_shell_value     as source_shell_value,
+           a.origano_bomby   as origano_bomby,
+           a.ticket_id              as ticket_id,
+           -1                       as dividend_flag,
+           -1                       as dividend_num,
+           a.fr_id                     org_fr_id,
+           a.landing_iron           as landing_iron,
+           a.shotout_iron_type     as shotout_iron_type,
+           a.shotout_iron_id       as shotout_iron_id,
+           a.shotout_iron_type_id  as shotout_iron_type_id
+        from [prefix1_prefix2].[schema].[prefix2_ext_ppin] a with (nolock)
+                 left join prefix1_prefix2.schema.prefix2_tables s with (nolock)
+                           on a.prefix2_table_id = s.prefix2_table_id
+                 left join prefix1_prefix2.schema.prefix2_bazar c with (nolock)
+                           on c.bazar_id =
+                              case
+                                  when a.bazar_id = 999
+                                      then a.whabble_bazar_id
+                                  else a.bazar_id
+                                  end
+             -- here we state all the an that get posted in v1 and since what date.
+        where ((a.fr_name like 'mimosa%'
+            and a.exchangedate >= '2017-10-01')
+            or (a.fr_name like 'nice'
+                and a.exchangedate >= '2018-01-01')
+            or (a.fr_name like 'flowers%'
+                and a.exchangedate >= '2018-01-01')
+            or (a.fr_name like 'artjumper%'
+                and a.exchangedate >= '2018-01-01')
+            or (a.fr_name like 'gintonic%'
+                and a.exchangedate >= '2018-01-01')
+            or (a.fr_name like 'beernet%'
+                and a.exchangedate >= '2018-03-01')
+            or (a.fr_name like 'rome%')
+            or (a.fr_name = 'gym geography')
+            or (a.fr_name = 'ecselis')
+            --or (     a.fr_name = 'doubleart')
+            or (a.fr_name = 'plc')
+            or (a.fr_name = 'grpc')
+            or (a.fr_name = 'andas')
+            or (a.fr_name = 'alps')
+            or (a.fr_name = 'santa')
+            or (a.fr_name = 'pirenei')
+            or (a.fr_name = 'jungle')
+            or (a.fr_name = 'acisquat')
+            or (a.fr_name = 'hey')
+            or (a.fr_name = 'gintonic')
+            or (a.fr_name = 'tennis')
+            or (a.fr_name = 'bulls eye')
+            or (a.fr_name = 'aeiou')
+            or (a.fr_name = 'ppin union')
+            or (a.fr_name = 'sn')
+            or (a.fr_name = 'dnr')
+            or (a.fr_name = 'testament ads')
+            or (a.fr_name = 'watch out')
+            or (a.fr_name = 'sepultura')
+            or (a.fr_name = 'viberllica')
+            or (a.fr_name = 'megadeth')
+            or (a.fr_name = 'scake')
+            or (a.fr_name like 'zztop%'
+                and a.exchangedate >= '2018-06-01')
+            or (a.fr_name = 'meshuggah'
+                and a.exchangedate >= '2018-09-01')
+            or (a.fr_name like '%wah%cal%')
+            or (a.fr_name = 'tfr')
+            or (a.fr_name = 'pmi')
+            or (a.fr_name = 'affilae'))
+          and not exists(select *
+                             from [prefix1_prefix2].[schema].[prefix2_ext_brzo_ppin_freezed] as ab with (nolock)
+                             where a.fr_id = ab.fr_id
+                               and a.fr_name = ab.fr_name)
+          and coalesce(a.drink_card_flag, 0) = 0
+          and a.exchangedate >= @extract_timestamp_lowerbound
+          and a.exchangedate <= @extract_timestamp_upperbound;
+
+    insert into prefix1_shows.schema.fr_searching_pol_show
+    select a.standard_ppin,
+           case
+               when a.status = 'canceled'
+                   then 'cancelled'
+               else a.status
+               end                as [status],
+           a.fr_name,
+           a.prefix2_aff_id,
+           case
+               when a.bazar_id = 999
+                   then a.whabble_bazar_id
+               else a.bazar_id
+               end                as bazar_id,
+           a.prefix2_table_id,
+           a.shell_value,
+           case
+               when a.bazar_id = ''
+                   and (a.whabble_bazar_id = '' or a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+                   then a.bazar_name_scrambled
+               when a.bazar_id = 999
+                   and (a.whabble_bazar_id = '' or a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+                   then a.bazar_name_scrambled
+               when a.bazar_id is null
+                   and (a.whabble_bazar_id = '' or a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+                   then a.bazar_name_scrambled
+               else ce.bazar_host
+               end                as webbazar,
+           coalesce(a.exchangedate_modified, a.exchangedate),
+           datediff(day, '2009-12-31', coalesce(a.exchangedate_modified, a.exchangedate)),
+           case
+               when a.bazar_id = ''
+                   then a.geptd
+               when a.bazar_id is not null
+                   and a.table_name is null
+                   then a.geptd
+               else a.table_name
+               end                as table,
+           ce.bazar_magic_id,
+           a.standard_comm_bomby,
+           a.showing_ppin,
+           a.showing_comm_bomby,
+           a.showing_shell_value,
+           a.brzo_flag,
+           a.fr_id                as fr_id,
+           a.done                 as done,
+           a.juicedate          as juicedate,
+           a.book_id           as book_id,
+           a.source_ppin    as source_ppin,
+           a.source_shell_value   as source_shell_value,
+           a.origano_bomby as origano_bomby,
+           null                      ticket_id,
+           dividend_flag,
+           dividend_num,
+           a.org_fr_id            as org_fr_id,
+           null                   as landing_iron,
+           null                   as shotout_iron_type,
+           null                   as shotout_iron_id,
+           null                   as shotout_iron_type_id
+        from [prefix1_prefix2].[schema].[prefix2_ext_brzo_ppin_freezed] as a with (nolock)
+                 left join prefix1_prefix2.schema.prefix2_bazar ce with (nolock)
+                           on ce.bazar_id = case
+                                               when a.bazar_id = 999
+                                                   then a.whabble_bazar_id
+                                               else a.bazar_id
+                               end
+        where (
+                (a.fr_name like 'mimosa%'
+                    and coalesce(a.exchangedate_modified, a.exchangedate) >= '2017-10-01')
+                or (a.fr_name like 'nice'
+                and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-01-01')
+                or (a.fr_name like 'flowers%'
+                and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-01-01')
+                or (a.fr_name like 'artjumper%'
+                and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-01-01')
+                or (a.fr_name like 'gintonic%'
+                and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-01-01')
+                or (a.fr_name like 'beernet%'
+                and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-03-01')
+                or (a.fr_name like 'rome%')
+                or (a.fr_name = 'gym geography')
+                --or (a.fr_name = 'doubleart')
+                or (a.fr_name = 'plc')
+                or (a.fr_name = 'ecselis')
+                or (a.fr_name = 'andas')
+                or (a.fr_name = 'alps')
+                or (a.fr_name = 'grpc')
+                or (a.fr_name = 'santa')
+                or (a.fr_name = 'pirenei')
+                or (a.fr_name = 'jungle')
+                or (a.fr_name = 'acisquat')
+                or (a.fr_name = 'hey')
+                or (a.fr_name = 'gintonic')
+                or (a.fr_name = 'tennis')
+                or (a.fr_name = 'bulls eye')
+                or (a.fr_name = 'aeiou')
+                or (a.fr_name = 'ppin union')
+                or (a.fr_name = 'sn')
+                or (a.fr_name = 'dnr')
+                or (a.fr_name = 'viberllica')
+                or (a.fr_name = 'megadeth')
+                or (a.fr_name = 'scake')
+                or (a.fr_name = 'testament ads')
+                or (a.fr_name = 'watch out')
+                or (a.fr_name = 'sepultura')
+                or (a.fr_name like 'zztop%'
+                and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-06-01')
+                or (a.fr_name = 'meshuggah'
+                and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-09-01')
+                or (a.fr_name like '%wah%cal%')
+                or (a.fr_name = 'tfr')
+            )
+          and a.brzo_flag in ('0', '1', '2', '5')
+          and a.exchangedate >= @extract_timestamp_lowerbound
+          and a.exchangedate <= @extract_timestamp_upperbound;
+
+
+-- fix for brb
+    update prefix1_shows.schema.fr_searching_pol_show
+    set webbazar = 'www.lasttime.test'
+        where webbazar like '%unoopasquat%'
+          and exchangedate >= '2019-01-21';
+
+
+    update prefix1_shows.schema.fr_searching_pol_show
+    set bazar_id = 85
+        where bazar_id = 52
+          and exchangedate >= '2019-01-21';
+
+    update a
+    set a.shotout_iron_type_id = coalesce(a.shotout_iron_type_id, types.shotout_iron_type_id)
+        from prefix1_shows.schema.fr_searching_pol_show a
+            left join prefix1_shows.schema.shotout_iron_types types
+                on a.shotout_iron_type=types.shotout_iron_type
+    where a.exchangedate >= @extract_timestamp_lowerbound
+      and a.exchangedate <= @extract_timestamp_upperbound;
+
+end

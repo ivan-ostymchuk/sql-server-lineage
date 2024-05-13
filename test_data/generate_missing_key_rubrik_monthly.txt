@@ -1,0 +1,32 @@
+CREATE procedure [schema].[generate_missing_key_rubrik_monthly]
+as
+begin
+
+
+    truncate table [prefix1_shows].[schema].[missing_key_rubrik_monthly];
+
+
+    with erdifr_bazars_rubrik as (
+        select prefix2_date_id,
+               prefix2_date first_of_month,
+               erdifr_bazars.bazar_id,
+               erdia.bazar_magic_id
+            from (
+                     select distinct d.prefix2_date_id,
+                                     d.prefix2_date
+                         from [prefix1_shows].[schema].[farm_all_key_rubrik] p with (nolock)
+                                  left join prefix1_prefix2.schema.prefix2_date d with (nolock)
+                                            on month(p.prefix2_date) = d.mm and year(p.prefix2_date) = d.yy and
+                                               d.day_of_month = 1
+                         where d.prefix2_date_id is not null
+                 ) farm_all_key_rubrik
+                     cross join (values (9), (17), (33)) as erdifr_bazars(bazar_id)
+                     cross join (values (9)) as erdia(bazar_magic_id)
+    )
+    insert
+        into [prefix1_shows].[schema].[missing_key_rubrik_monthly]
+    select newid(), c.*,s.prefix2_bazar_id,null
+        from erdifr_bazars_rubrik c
+    left join prefix1_prefix2.schema.prefix2_bazar s on c.bazar_id=s.bazar_id
+
+end;

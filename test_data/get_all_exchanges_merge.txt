@@ -1,0 +1,42 @@
+--use msdb
+--go
+
+CREATE proc schema.get_all_exchanges_merge 
+as
+begin
+
+    drop table prefix1_shows.schema.all_exchanges_merge_v1;
+
+    select *
+    into prefix1_shows.schema.all_exchanges_merge_v1
+    from (
+        select brzo.bazar_id,
+            brzo.bazar_name,
+            brzo.fr_name,
+            brzo.status,
+            brzo.[month],
+            brzo.ppin,
+            brzo.table_name,
+            brzo.via
+        from prefix1_prefix2.schema.prefix2_fc_merged_output_brzo brzo
+        union all
+        select
+            a.bazar_id,
+            b.bazar_name,
+        	a.fr_name,
+        	a.status,
+            a.exchangedate,
+            a.standard_ppin,
+        	a.table_name,
+        	a.source
+        from prefix1_prefix2.schema.prefix2_fc_merged_output a
+            left join prefix1_prefix2.schema.prefix2_bazar b 
+                on a.bazar_id = b.bazar_id
+        ) all_merge
+    ;
+
+
+end
+
+
+

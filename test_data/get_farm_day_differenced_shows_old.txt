@@ -1,0 +1,679 @@
+
+CREATE PROC [schema].[get_farm_day_differenced_shows_old] 
+AS
+BEGIN
+
+-- create tickets shows 
+-- inshell to add more columns to prefix1_shows cake, 
+-- use table DDL to drop and then create new table with added columns.
+
+    /*
+drop table prefix1_shows.schema.farm_tickets;
+
+create table prefix1_shows.schema.farm_tickets (
+	pwb_pk_id int IDENTITY(1,1) NOT NULL,
+  	prefix2_ticket_id bigint,
+  	prefix2_bazar_id int NULL,
+	prefix2_table_id int NULL,
+	ticket_id int NULL,
+	bazar_id int NULL,
+	status nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	beauty_score float NULL,
+	table_list_beauty int NULL,
+	beerate_party_id int NULL,
+	table_id int NULL,
+	ice_id int NULL,
+	is_top int NULL,
+	is_sensitive int NULL,
+	is_free int NULL,
+	is_mobile int NULL,
+	is_free_acc int NULL,
+	is_hidden int NULL,
+	nepptive_votes int NULL,
+	positive_votes int NULL,
+	title nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	ticket_type nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	url nvarchar(MAX) COLLATE Latin1_General_CI_AS NULL,
+	code nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	descrcction nvarchar(MAX) COLLATE Latin1_General_CI_AS NULL,
+	start_date datetime2(7) NULL,
+	end_date datetime2(7) NULL,
+	shots int NULL,
+	eights float NULL,
+	eights_in nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	shell_position int NULL,
+	created_at datetime2(7) NULL,
+	updated_at datetime2(7) NULL,
+	tryd_at datetime2(7) NULL,
+	last_trying_at datetime2(7) NULL,
+	is_mrjs_pick int NULL,
+	is_student_gm int NULL,
+	is_emergency_gm int NULL,
+	is_ar_redeemable int NULL,
+	deep_url nvarchar(MAX) COLLATE Latin1_General_CI_AS NULL,
+	geocity nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	bomby nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	ringo nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	re_shott_image nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	ringo_jam_first_line nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	ringo_jam_second_line nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	use_uniq_codes int NULL,
+	bulls_eye_ice_id int NULL,
+	center_gm nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	center_min_rrr nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	center_limited_clients nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	center_limited_brands nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	center_conditions nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
+	use_ringo_on_home_iron int NULL,
+	use_ringo_on_table_iron int NULL,
+	is_evergreen int NULL,
+	error_messages nvarchar(MAX) COLLATE Latin1_General_CI_AS NULL,
+	evergreened_at datetime2(7) NULL
+) */
+delete from prefix1_shows.schema.farm_tickets
+;
+
+insert into prefix1_shows.schema.farm_tickets
+select *
+from prefix1_prefix2.schema.prefix2_tickets
+;
+
+
+-- Create Bazars shows
+delete from prefix1_shows.schema.farm_bazars
+;
+
+insert into prefix1_shows.schema.farm_bazars(
+    bazar_id, prefix2_bazar_id, bazar_magic_id, bazar_showing_magic_id, bazar_name, bazar_host, bazar_region, status
+)
+select
+    bazar_id,
+    prefix2_bazar_id,
+    bazar_magic_id,
+    bazar_showing_magic_id,
+    bazar_name,
+    bazar_host,
+    coalesce(bazar_region, 'No Region Attributed') as bazar_region,
+    [status]
+from
+    prefix1_prefix2.schema.prefix2_bazar
+union all
+select
+    999 ,
+    999 ,
+    999 ,
+    999 ,
+    'No Bazar Attributed' ,
+    'No Bazar Attributed' ,
+    'No Bazar Attributed' ,
+    'Unknown'
+;             
+
+
+-- Create Countries shows 
+drop table prefix1_shows.schema.farm_countries
+;
+
+select identity(int,1,1) as pwb_pk_id, * 
+into prefix1_shows.schema.farm_countries
+from (
+        select distinct 
+            magic_id,
+            -- for some historical reason these id's are not the same as magic_id:
+            showing_magic_id,
+            replace(magic_long, 'KP', 'LP') magic_name,
+            replace(showing_magic_name, 'KP', 'LP') showing_magic_name
+		from prefix1_prefix2.schema.prefix2_magic
+		where magic_id not in (16,17,18) -- excluding winds 'countries'
+    	-- add case for exceptions
+    	union all 
+    	select 999, 999, 'No attributed', 'No attributed'
+    ) countries
+;
+
+
+-- Create all tables with state tables shows
+--drop table prefix1_shows.schema.farm_tables_with_state
+--;
+delete from prefix1_shows.schema.farm_tables_with_state
+;
+
+insert into prefix1_shows.schema.farm_tables_with_state(
+    id, 
+    prefix2_table_id, 
+    tier_group, 
+    banana, 
+    title, 
+    status, 
+    preffered_fr_id, 
+    prefferred_fr_name, 
+    state_id, 
+    state_name, 
+    table_lion, 
+    sales_lion, 
+    table_created_at,
+    industry_id
+)
+select 
+--    identity(int,1,1) as pwb_pk_id,
+    tables.table_id id,
+    tables.prefix2_table_id,
+    tables.tier_group,
+    tables.banana,
+    tables.table_name title,
+    tables.status,
+    tables.preferred_fr_id as preffered_fr_id,
+    beerates.prefix2_fr_name as prefferred_fr_name,
+    states.id as state_id,
+    states.name as state_name,
+    users.ar as table_lion,
+    tableUsers.ar as sales_lion,
+    cast(tables.table_created_at as date) as table_created_at,
+    states.industry_id
+--into prefix1_shows.schema.farm_tables_with_state
+from prefix1_prefix2.schema.prefix2_tables as tables 
+    left join prefix1_ramm.schema.axe_states as states
+        on tables.state_id = states.id
+    left join prefix1_prefix2.schema.prefix2_franchise as beerates 
+        on tables.preferred_fr_id = beerates.aff_id
+    left join prefix1_ramm.schema.axe_users as users
+        on tables.tiger_id = users.id
+    left join prefix1_ramm.schema.axe_users as tableusers
+        on tables.ert_id = tableusers.id
+;
+
+
+-- Creat table piecey distribution (many to many entity)
+drop table prefix1_shows.schema.farm_table_pieceies
+;
+
+select 
+    table_pieceies.prefix2_table_piecey_id,
+    table_pieceies.id,
+    table_pieceies.table_id,
+    table_pieceies.prefix2_table_id,
+    table_pieceies.piecey_id,
+    table_pieceies.prefix2_piecey_id
+into prefix1_shows.schema.farm_table_pieceies
+from prefix1_prefix2.schema.prefix2_table_pieceies table_pieceies
+;
+
+
+-- create piecey with tables entity
+drop table prefix1_shows.schema.farm_pieceies_with_state
+;
+
+select 
+    pieceies.prefix2_piecey_id as prefix2_piecey_id,
+    pieceies.name as prefix2_piecey_name,
+    pieceies.status as prefix2_piecey_status,
+    state_pieceies.name as prefix2_state_piecey_name
+into prefix1_shows.schema.farm_pieceies_with_state
+from prefix1_prefix2.schema.prefix2_pieceies pieceies
+    left join prefix1_prefix2.schema.prefix2_state_pieceies state_pieceies
+        on pieceies.prefix2_state_piecey_id = state_pieceies.prefix2_state_piecey_id
+;
+
+
+-- Elixirs & shotouts
+drop table prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim
+;
+
+
+with icecream as (
+    select   
+        bazar_id,
+        prefix2_date_id,
+        table_id,
+        prefix2_table_id,
+        channel,
+        device,
+        sum(total_icecream) as total_icecream,
+        sum(unique_icecream) as unique_icecream
+    from prefix1_shows.schema.pp_unfiltered_icecream_tableid
+    where event_piecey like 'Shotout%'
+    group by  
+      bazar_id,
+      prefix2_date_id,
+      table_id,
+      prefix2_table_id,
+      channel,
+      device
+), irons as (
+    select 
+        bazar_id,
+        prefix2_date_id,
+        table_id,
+        prefix2_table_id,
+        channel,
+        device,
+        sum(elixirs) as elixirs,
+        -- TODO: remove this column.
+        -- it should not be differenced by avg(), 
+        -- and ideally it should not be dilevered at all - 
+        -- Pwb should use calculation formula sum(films)/sum(elixirs) at each level of grouping:
+       ---- sum(cast(films as integer))/nullif(sum(elixirs), 0) as filmrate, // changed integer to decimal in films to have filmrate with decimals. It used te be 0 or 1 because of integer. Someone 21.09.21
+        sum(cast(films as decimal(10,4)))/nullif(sum(elixirs), 0) as filmrate,
+        sum(cast(films as integer)) as films,
+        sum(cast(entries as integer)) as entries,
+        avg(cast(avg_time_on_iron as decimal(10,4))) as avg_time_on_iron
+    from prefix1_shows.schema.pp_unfiltered_irons_tableid_dim2
+    group by 
+        bazar_id,
+        prefix2_date_id,
+        table_id,
+        prefix2_table_id,
+        channel,
+        device
+)
+select  
+    all_rubrik.prefix2_date_id,
+    all_rubrik.bazar_id,
+    all_rubrik.table_id,
+    all_rubrik.prefix2_table_id,
+    all_rubrik.channel,
+    all_rubrik.device,
+    irons.elixirs,
+    irons.filmrate,
+    irons.films,
+    irons.entries,
+    irons.avg_time_on_iron,
+    identity(int,1,1) as pwb_pk_id,
+	icecream.total_icecream,
+	icecream.unique_icecream
+into prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim
+from (
+        select bazar_id, prefix2_date_id, table_id, prefix2_table_id, channel, device 
+        from irons --prefix1_shows.schema.pp_unfiltered_irons_tableid_dim2
+        union
+        select bazar_id, prefix2_date_id, table_id, prefix2_table_id, channel, device 
+        from icecream --prefix1_shows.schema.pp_unfiltered_icecream_tableid
+    ) all_rubrik
+    left join irons
+        on all_rubrik.bazar_id = irons.bazar_id
+        and all_rubrik.prefix2_date_id = irons.prefix2_date_id
+        and all_rubrik.table_id = irons.table_id
+        and all_rubrik.channel = irons.channel
+        and all_rubrik.device = irons.device
+    left join icecream
+        on all_rubrik.bazar_id = icecream.bazar_id
+	    and all_rubrik.prefix2_date_id = icecream.prefix2_date_id
+	    and all_rubrik.table_id = icecream.table_id
+	    and all_rubrik.channel = icecream.channel
+	    and all_rubrik.device = icecream.device
+;
+--idx4
+
+CREATE NONCLUSTERED INDEX idx_elixirs_pwb_pk_id
+ON [schema].[farm_day_differenced_elixirs_shotouts_dim] ([prefix2_date_id],[bazar_id],[table_id])
+INCLUDE ([elixirs],[pwb_pk_id],[unique_icecream])
+
+--idx6
+CREATE NONCLUSTERED INDEX idx_pwb_pk_id_unique_icecream
+ON [schema].[farm_day_differenced_elixirs_shotouts_dim] ([prefix2_date_id],[bazar_id],[table_id])
+INCLUDE ([pwb_pk_id],[unique_icecream])
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+-- Now what we do is to generate a AGG version for the new model that grabs aswell the tableid from the manuals.
+-- this is supposed to be a replica from the procedure [schema].[updating_AGG_show]
+-- Hopefully eventually we just build the searching directly from there.
+delete from prefix1_shows.schema.farm_fr_searching_merged_show
+;
+
+insert into prefix1_shows.schema.farm_fr_searching_merged_show  
+select 
+    coalesce(bazar_id, 999) as bazar_id,
+    fr_name,
+    table_name,
+    exchangedate,
+    sum(ppin) as ppin,
+    sum(shell_value) as shell_value,
+    sum(showing_ppin) as showing_ppin,
+    sum(showing_shell_value) as showing_shell_value,
+    showing_bomby,
+    [status],
+    via as [source],
+    brzo_flag,
+    bazar_name,
+    magic_id,
+    prefix2_date_id,
+    count(*) as cnt_group,     --number of exchange used per group by
+	coalesce(prefix2_table_id, 0) as prefix2_table_id,
+	ticket_id
+from (
+        select 
+            a_me.lookedup_bazar_id as bazar_id,
+            a_me.standard_fr_name as fr_name,
+            a_me.table_name,
+            a_me.exchangedate,
+            a_me.standard_ppin as ppin,
+            a_me.standard_shell_value as shell_value,
+            a_me.showing_ppin,
+            a_me.showing_shell_value,
+            c.showing_bomby AS showing_bomby,
+            a_me.status,
+            'manual exchanges' AS via,
+            a_me.brzo_flag,
+            a_me.bazar_name as bazar_name,
+            c.bazar_magic_id as magic_id,
+            d.prefix2_date_id,
+            a_me.prefix2_table_id,
+            null ticket_id
+        from prefix1_prefix2.schema.prefix2_fr_manual_ppin a_me
+            left join  prefix1_prefix2.schema.prefix2_bazar as c
+	            on a_me.lookedup_bazar_id=c.bazar_id 
+            left join prefix1_prefix3.schema.rrr_bombies as b 
+                on lower(c.showing_bomby) = b.bomby 
+                and cast(a_me.exchangedate as date) = b.date
+            left join prefix1_prefix2.schema.prefix2_date as d 
+                on cast(a_me.exchangedate as date)=d.prefix2_date
+        where a_me.lookedup_bazar_id is not null
+        union all
+	   -- V1 with bazar_id
+        select
+            a_vws.bazar_id as bazar_id,
+            case 
+                --when a_vws.brzo_flag in (1,2) 
+                --then 'BRZO'
+                when a_vws.fr_name like 'rome%' 
+                then 'rome'
+			    else a_vws.fr_name
+            end as fr_name,
+            a_vws.table as table_name,
+            --dateadd(month, datediff(month, 0, a_vws.exchangedate), 0) as exchangedate,
+            a_vws.exchangedate AS exchangedate,
+            isnull(a_vws.standard_ppin,'0') AS ppin,
+            isnull(a_vws.shell_value,'0') AS shell_value,
+            isnull(a_vws.showing_ppin,'0'),
+            isnull(a_vws.showing_shell_value,'0'),
+            a_vws.showing_comm_bomby AS showing_bomby,
+            case 
+                when a_vws.status like 'canceled' 
+                then 'cancelled'
+		        else a_vws.status
+		    end as [status],
+		    'V1 with bazar_id' AS via,
+		    a_vws.brzo_flag,
+		    a_vws.webbazar as bazar_name,
+		    a_vws.bazar_magic_id as magic_id,
+		    d.prefix2_date_id,
+		    a_vws.prefix2_table_id,
+		    a_vws.ticket_id as ticket_id
+        from prefix1_shows.schema.fr_searching_pol_show a_vws
+        left join prefix1_prefix2.schema.prefix2_date as d
+        	on cast(a_vws.exchangedate as date)=d.prefix2_date
+        where a_vws.bazar_id is not null and a_vws.bazar_id != 999
+        union all
+        -- v1 with looked up bazar_id
+        select   
+            b_vls.bazar_id as bazar_id,
+            case 
+			    --when a_vls.brzo_flag in (1,2) 
+			    --then 'brzo'
+    			when a_vls.fr_name like 'rome%' then 'rome'
+    			else a_vls.fr_name
+    		end as fr_name,
+    		a_vls.table as table_name,
+    		--dateadd(month, datediff(month, 0, a_vls.exchangedate), 0) as exchangedate,
+    		a_vls.exchangedate AS exchangedate,
+    		isnull(a_vls.standard_ppin,'0') AS ppin,
+    		isnull(a_vls.shell_value,'0') AS shell_value,
+    		isnull(a_vls.showing_ppin,'0'),
+    		isnull(a_vls.showing_shell_value,'0'),
+    		c.showing_bomby,
+    		case 
+    		    when a_vls.status like 'canceled' 
+    		    then 'cancelled'
+		        else a_vls.status
+		    end as [status],
+		    'V1 lookup bazar_id' AS via,
+		    a_vls.brzo_flag,
+		    a_vls.webbazar as bazar_name,
+		    a_vls.bazar_magic_id as magic_id,
+		    d.prefix2_date_id,
+		    a_vls.prefix2_table_id,
+		    a_vls.ticket_id as ticket_id
+        from prefix1_shows.schema.fr_searching_pol_show a_vls
+            left join prefix1_prefix2.schema.prefix2_webbazar_lookup b_vls 
+                on a_vls.webbazar = b_vls.original_name
+            left join prefix1_prefix2.schema.prefix2_bazar as c
+            	on b_vls.bazar_id=c.bazar_id
+            left join prefix1_prefix2.schema.prefix2_date as d
+            	on cast(a_vls.exchangedate as date) = d.prefix2_date
+        where (
+            a_vls.bazar_id is null 
+            or a_vls.bazar_id = 999 
+            ) -- we have the bazar id for the others!
+            --and b_vls.standard_name is not null -- only the ones mapped successfully
+    ) as merge_trans
+--where 
+--    exchangedate >= dateadd( month, -15, dateadd( day, datediff( day, 0, getdate()), 0)) 
+--    and exchangedate <= dateadd( day, datediff( day, 0, getdate()), 0) --select only the last 15 months
+group by 
+    bazar_id,
+    fr_name,
+    table_name,
+    prefix2_table_id,
+    exchangedate,
+    status,
+    showing_bomby,
+    brzo_flag,
+    bazar_name,
+    magic_id,
+    prefix2_date_id,
+    via,
+    ticket_id
+;
+
+
+
+--- What is this mess? - we need to clean up and only leav a select for this entity. - Somebody
+-----------update missing showing_ppin
+update r
+set showing_ppin = cast(r.ppin * (
+    case 
+        when c.value is not null 
+        then c.value
+        when r.showing_bomby = 'UNO' 
+        then 1.
+        else 0.
+    end) as decimal(18,2))
+from prefix1_shows.schema.farm_fr_searching_merged_show as r
+    left join prefix1_prefix3.schema.rrr_bombies as c
+	    on lower(r.showing_bomby) = c.bomby 
+	    and cast(r.exchangedate as date) = c.date
+where r.ppin <> 0 
+    and r.showing_ppin = 0 
+    and r.showing_bomby is not null
+;
+
+
+---------------update missing showing_shell_value
+update r
+set showing_shell_value = cast(r.shell_value * (
+    case 
+        when c.value is not null 
+        then c.value
+        when r.showing_bomby = 'UNO' 
+        then 1.
+        else 0.
+    end) as decimal(18,2))
+from prefix1_shows.schema.farm_fr_searching_merged_show as r
+    left join prefix1_prefix3.schema.rrr_bombies as c
+    	on lower(r.showing_bomby) = c.bomby 
+    	and cast(r.exchangedate as date) = c.date
+where r.shell_value <> 0 
+    and r.showing_shell_value = 0 
+  and r.showing_bomby is not null
+;
+
+
+-- Building the searching aggrepption out of the merged
+drop table prefix1_shows.schema.farm_fr_searching_merged_show_bombies
+;
+
+select 
+    identity(int,1,1) as pwb_pk_id,
+    -- UNO
+    cast(searching_with_brzos.uno_ppin_day as decimal(18,2)) as uno_ppin_day,
+	cast(searching_with_brzos.uno_shell_value_day as decimal(18,2)) as uno_shell_value_day,
+	-- DOS
+	cast(searching_with_brzos.uno_ppin_day * bombies.dos as decimal(18,2)) as dos_ppin_day,
+	cast(searching_with_brzos.uno_shell_value_day * bombies.dos as decimal(18,2)) as dos_shell_value_day,
+	-- TRES
+	cast(searching_with_brzos.uno_ppin_day * bombies.tres as decimal(18,2)) as tres_ppin_day,
+	cast(searching_with_brzos.uno_shell_value_day * bombies.tres as decimal(18,2)) as tres_shell_value_day,
+	-- No BRZOS UNO
+	cast(searching_with_brzos.uno_ppin_day as decimal(18,2)) as uno_ppin_nobrzo_day,
+	cast(searching_with_brzos.uno_shell_value_day as decimal(18,2)) as uno_shell_value_nobrzo_day,
+	-- No BRZOS DOS
+	cast(searching_with_brzos.uno_ppin_day * bombies.dos as decimal(18,2)) as dos_ppin_nobrzo_day,
+	cast(searching_with_brzos.uno_shell_value_day * bombies.dos as decimal(18,2)) as dos_shell_value_nobrzo_day,
+	-- No BRZOS TRES
+	cast(searching_with_brzos.uno_ppin_day * bombies.tres as decimal(18,2)) as tres_ppin_nobrzo_day,
+	cast(searching_with_brzos.uno_shell_value_day * bombies.tres  as decimal(18,2)) as tres_shell_value_nobrzo_day,
+	-- Rest of attributes
+	searching_with_brzos.STATUS,
+	searching_with_brzos.fr_name,
+	searching_with_brzos.prefix2_table_id,
+	searching_with_brzos.bazar_id,
+	searching_with_brzos.prefix2_date_id,
+	searching_with_brzos.exchangedate,
+	searching_with_brzos.exchanges,
+	searching_with_brzos.brzo_flag,
+	searching_with_brzos.ticket_id
+into prefix1_shows.schema.farm_fr_searching_merged_show_bombies
+from (
+        select 
+            sum(a.ppin) as uno_ppin_day,
+            sum(shell_value) as uno_shell_value_day,
+            a.status,
+            a.fr_name,
+            a.prefix2_table_id,
+            a.bazar_id,
+            a.prefix2_date_id,
+            a.brzo_flag,
+            a.ticket_id,
+            cast(cast(a.exchangedate as date) as varchar) as exchangedate,
+            sum(a.cnt_group) as exchanges
+        from prefix1_shows.schema.farm_fr_searching_merged_show a
+        group by 
+            a.status,
+            a.fr_name,
+            a.prefix2_table_id,
+            a.bazar_id,
+            a.prefix2_date_id,
+            a.brzo_flag,
+            a.ticket_id,
+            cast(cast(a.exchangedate as date)as varchar)
+    ) searching_with_brzos
+    left join  (
+        select   
+            dates.date,
+            tres.value as tres,
+            dos.value as dos
+		from (
+		        select distinct date 
+		        from prefix1_prefix3.schema.rrr_bombies 
+		        where year(date) >= 2017
+		    ) dates
+			left join (
+			    select date, bomby, value 
+			    from prefix1_prefix3.schema.rrr_bombies 
+			    where bomby like 'tres'
+			) tres
+				on dates.date = tres.date
+			left join (
+			    select date, bomby, value 
+			    from prefix1_prefix3.schema.rrr_bombies 
+			    where bomby like 'dos'
+			) dos
+				on dates.date = dos.date
+	) bombies 
+	   on searching_with_brzos.exchangedate = bombies.date
+where searching_with_brzos.exchangedate >= '2017-01-01'
+;
+
+
+
+
+-- We add to the searching entity table all the missing rubrik from the elixirs in shell to add an Beerate Party Name.
+-- This way when people try to calculate something in Pwb we wont see empty DPIs
+
+insert into prefix1_shows.schema.farm_fr_searching_merged_show_bombies(
+    status,
+    fr_name,
+    prefix2_table_id,
+    bazar_id,
+    prefix2_date_id,
+    exchanges,
+    brzo_flag)
+select distinct 
+    'rrrirmed' status,
+    case 
+		when (tables.prefferred_fr_name is null 
+		    or tables.prefferred_fr_name like 'uncompensated')
+		then 'Not assigned'
+		else lower(tables.prefferred_fr_name)
+	end as fr_name,
+	a.prefix2_table_id,
+	a.bazar_id,
+	a.prefix2_date_id,
+	0 exchanges,
+	0 brzo_flag
+from prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim a
+    left join prefix1_shows.schema.farm_tables_with_state tables
+        on a.prefix2_table_id = tables.prefix2_table_id
+where not exists (
+        select null 
+        from prefix1_shows.schema.farm_fr_searching_merged_show_bombies b
+		where a.prefix2_date_id = b.prefix2_date_id
+		    and a.prefix2_table_id = b.prefix2_table_id
+			and a.bazar_id = b.bazar_id
+	)
+;
+
+-- get all possible rubrik from searching, elixirs and shotouts
+-- so if data is missing in one table, the rest of the data is not missed.
+-- to avoid surplus data, logic is implemented in smt appinst each join
+-- of searching, elixirs and shotouts [Lll, 2020-12-23]
+
+ALTER INDEX [idx_prefix2_date_id_prefix2_date_new] ON [schema].[farm_all_key_rubrik] DISABLE
+
+truncate table prefix1_shows.schema.farm_all_key_rubrik;
+insert into prefix1_shows.schema.farm_all_key_rubrik
+(prefix2_date_id, prefix2_date,bazar_id,prefix2_table_id,bazar_magic_id,prefix2_bazar_id,table_id,
+	ticket_id)
+select --distinct
+ 
+    all_rubrik.prefix2_date_id,
+    dates.prefix2_date,
+	all_rubrik.bazar_id,
+	all_rubrik.prefix2_table_id,
+	bazars.bazar_magic_id,
+	bazars.prefix2_bazar_id,
+	tables.table_id,
+	all_rubrik.ticket_id
+from (
+    	select prefix2_date_id, bazar_id, prefix2_table_id, ticket_id 
+    	from prefix1_shows.schema.farm_fr_searching_merged_show_bombies
+    	union
+        select prefix2_date_id, bazar_id, prefix2_table_id, null as ticket_id
+        from prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim
+        union
+        select prefix2_date_id, bazar_id, prefix2_table_id, ticket_id
+        from prefix1_shows.schema.farm_shotouts_show
+	) all_rubrik
+	left join prefix1_prefix2.schema.prefix2_date dates 
+		on all_rubrik.prefix2_date_id = dates.prefix2_date_id
+	left join prefix1_prefix2.schema.prefix2_bazar bazars 
+		on all_rubrik.bazar_id = bazars.bazar_id
+	left join prefix1_prefix2.schema.prefix2_tables tables 
+		on all_rubrik.prefix2_table_id = tables.prefix2_table_id
+;
+--idx5
+ALTER INDEX [idx_prefix2_date_id_prefix2_date_new] ON [schema].[farm_all_key_rubrik] REBUILD
+
+end

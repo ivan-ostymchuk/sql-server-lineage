@@ -1,0 +1,17 @@
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  build_python:
+    if: ${{ (github.event.pull_request.merged == true) && (startsWith(github.head_ref, 'release/')) }}
+    uses: ./.github/workflows/build-wheels.yml
+
+  publish:
+    if: ${{ (github.event.pull_request.merged == true) && (startsWith(github.head_ref, 'release/')) }}
+    needs: build_python
+    permissions:
+      id-token: write
+    uses: ./.github/workflows/publish.yml

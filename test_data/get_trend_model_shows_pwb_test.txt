@@ -1,0 +1,506 @@
+CREATE procedure [schema].[get_trend_model_shows_pwb_test] @date_limit_number int=1
+as
+begin
+
+    declare @extract_timestamp as datetime2;
+    declare @pp_timestamp as datetime2;
+    declare @extract_timestamp_date as date;
+    declare @extract_date_id as bigint;
+    declare @pp_extract_date_id as bigint;
+
+    set @extract_timestamp = cast(getdate() - @date_limit_number as date);
+    set @pp_timestamp = cast(getdate() - @date_limit_number as date);
+    set @extract_timestamp_date = convert(date, @pp_timestamp)
+    set @extract_date_id = datediff(day, '2009-12-31', convert(date, @extract_timestamp))
+    set @pp_extract_date_id = datediff(day, '2009-12-31', convert(date, @pp_timestamp))
+
+    delete from prefix1_shows.schema.fr_searching_pol_show_bf_pwb_test where exchangedate >= @extract_timestamp;
+
+    print convert(varchar(255), getdate(), 127) + ' fr_searching_pol_show_bf_pwb_test started';
+
+    insert into prefix1_shows.schema.fr_searching_pol_show_bf_pwb_test
+    select a.standard_ppin,
+           a.status,
+           a.fr_name,
+           a.prefix2_aff_id,
+           case
+               when a.bazar_id = 999 and a.fr_name like 'tennis'
+                   then a.whabble_bazar_id
+               else a.bazar_id
+               end                   as bazar_id,
+           a.prefix2_table_id,
+           a.shell_value,
+           case
+               when a.bazar_id = 999 and (a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+                   then a.bazar_name_scrambled
+               else c.bazar_host
+               end                   as webbazar,
+           a.exchangedate_adjtimezone,
+           right('00' + cast(datepart(trend, a.exchangedate_adjtimezone) as varchar), 2) +
+           ':00:00'                  as exchangetrend,
+           d.prefix2_date_id,
+           case
+               when a.bazar_id = 999 or a.merce_table_id is null
+                   then a.geptd
+               else s.table_name
+               end                   as table,
+           c.bazar_magic_id,
+           a.standard_comm_bomby,
+           a.showing_ppin,
+           a.showing_comm_bomby,
+           a.showing_shell_value,
+           '0'                       as brzo_flag,
+           a.fr_id                   as fr_id,
+           a.done                    as done,
+           a.juicedate             as juicedate,
+           a.book_id              as book_id,
+           a.source_ppin       as source_ppin,
+           a.source_shell_value      as source_shell_value,
+           a.origano_bomby    as origano_bomby,
+           coalesce(a.ticket_id, -1) as ticket_id
+        from (select *
+                  from prefix1_prefix2.schema.prefix2_ext_ppin_bf with (nolock)
+                  where exchangedate_adjtimezone >= @extract_timestamp) a
+                 left join prefix1_prefix2.schema.prefix2_tables s with (nolock)
+                           on a.prefix2_table_id = s.prefix2_table_id
+                 left join prefix1_prefix2.schema.prefix2_bazar c with (nolock)
+                           on c.bazar_id = case
+                                              when a.bazar_id = 999
+                                                  then a.whabble_bazar_id
+                                              else
+                                                  a.bazar_id
+                               end
+                 left join prefix1_prefix2.schema.prefix2_date d with (nolock)
+--            on format(convert(datetime2, a.exchangedate), 'yyyy-MM-dd') = cast(d.prefix2_date AS date)
+                           on format(a.exchangedate_adjtimezone, 'yyyy-MM-dd') = d.prefix2_date
+        where not exists(
+                select null
+                    from prefix1_prefix2.schema.prefix2_ext_brzo_ppin as ab with (nolock)
+                    where a.fr_id = ab.fr_id
+                      and a.fr_name = ab.fr_name
+            );
+
+    print convert(varchar(255), getdate(), 127) + ' fr_searching_pol_show_bf_pwb_test (brzo) started';
+
+    insert into prefix1_shows.schema.fr_searching_pol_show_bf_pwb_test
+    select a.standard_ppin,
+           case
+               when a.status = 'canceled'
+                   then 'cancelled'
+               else a.status
+               end                as [status],
+           a.fr_name,
+           a.prefix2_aff_id,
+           case
+               when a.bazar_id = 999
+                   then a.whabble_bazar_id
+               else a.bazar_id
+               end                as bazar_id,
+           a.prefix2_table_id,
+           a.shell_value,
+           case
+               when a.bazar_id = '' and (a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+                   then a.bazar_name_scrambled
+               when a.bazar_id = 999 and (a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+                   then a.bazar_name_scrambled
+               when a.bazar_id is null and (a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+                   then a.bazar_name_scrambled
+               else ce.bazar_host
+               end                as webbazar,
+           coalesce(a.exchangedate_modified, a.exchangedate),
+           right('00' + cast(datepart(trend, coalesce(a.exchangedate_modified, a.exchangedate)) as varchar), 2) +
+           ':00:00'               as exchangetrend,
+           de.prefix2_date_id,
+           case
+               when a.bazar_id = ''
+                   then a.geptd
+               when a.bazar_id is not null and a.table_name is null
+                   then a.geptd
+               else a.table_name
+               end                as table,
+           ce.bazar_magic_id,
+           a.standard_comm_bomby,
+           a.showing_ppin,
+           a.showing_comm_bomby,
+           a.showing_shell_value,
+           a.brzo_flag,
+           a.fr_id                as fr_id,
+           a.done                 as done,
+           a.juicedate          as juicedate,
+           a.book_id           as book_id,
+           a.source_ppin    as source_ppin,
+           a.source_shell_value   as source_shell_value,
+           a.origano_bomby as origano_bomby,
+           -1                        ticket_id
+        from prefix1_prefix2.schema.prefix2_ext_brzo_ppin as a with (nolock)
+                 left join prefix1_prefix2.schema.prefix2_bazar ce with (nolock)
+                           on ce.bazar_id = case
+                                               when a.bazar_id = 999
+                                                   then a.whabble_bazar_id
+                                               else a.bazar_id
+                               end
+                 left join prefix1_prefix2.schema.prefix2_date de with (nolock)
+                           on format(convert(datetime2, coalesce(a.exchangedate_modified, a.exchangedate)),
+                                     'yyyy-MM-dd') = cast(de.prefix2_date as date)
+        where 1 = 1
+          and a.brzo_flag in ('0', '1', '2', '5')
+          and a.exchangedate >= @extract_timestamp
+          and fr_name = 'ppin union'
+
+
+    print convert(varchar(255), getdate(), 127) + ' trend_model_searching_show_bf_pwb_test started';
+
+    delete from prefix1_shows.schema.trend_model_searching_show_bf_pwb_test where exchangedate >= @extract_timestamp;
+
+    insert into prefix1_shows.schema.trend_model_searching_show_bf_pwb_test
+    select coalesce(a.bazar_id, 999)                  as bazar_id,
+           case
+               when a.brzo_flag in (1, 2)
+                   then 'BRZO'
+               when a.fr_name like 'rome%'
+                   then 'rome'
+               else a.fr_name
+               end                                   as fr_name,
+           a.table                                    as table_name,
+           cast(a.exchangedate as date)           as exchangedate,
+           a.exchangetrend,
+           sum(isnull(a.standard_ppin, '0'))   as ppin,
+           sum(isnull(a.shell_value, '0'))           as shell_value,
+           sum(isnull(a.showing_ppin, '0'))  as showing_ppin,
+           sum(isnull(a.showing_shell_value, '0')) as showing_shell_value,
+           a.showing_comm_bomby                 as showing_bomby,
+           case
+               when a.status like 'canceled'
+                   then 'cancelled'
+               else a.status
+               end                                   as [status],
+           a.brzo_flag,
+           a.webbazar                                 as bazar_name,
+           a.bazar_magic_id                         as magic_id,
+           a.prefix2_date_id,
+           count(*)                                  as cnt_group,
+           coalesce(a.prefix2_table_id, 0)                as prefix2_table_id,
+           a.ticket_id                               as ticket_id
+        from prefix1_shows.schema.fr_searching_pol_show_bf_pwb_test a with (nolock)
+        where exchangedate >= @extract_timestamp
+        group by coalesce(a.bazar_id, 999),
+                 case
+                     when a.brzo_flag in (1, 2) then 'BRZO'
+                     when a.fr_name like 'rome%' then 'rome'
+                     else a.fr_name
+                     end,
+                 a.table,
+                 prefix2_table_id,
+                 cast(a.exchangedate as date),
+                 a.exchangetrend,
+                 case
+                     when a.status like 'canceled'
+                         then 'cancelled'
+                     else a.status
+                     end,
+                 a.showing_comm_bomby,
+                 a.brzo_flag,
+                 a.webbazar,
+                 a.bazar_magic_id,
+                 prefix2_date_id,
+                 a.ticket_id;
+
+    print convert(varchar(255), getdate(), 127) + ' trend_model_searching_show_bf_pwb_test continued... for NLPES Ppins';
+
+    insert into prefix1_shows.schema.trend_model_searching_show_bf_pwb_test
+    select nukes.bazar_id                                                                       as bazar_id,
+           nukes.fr_name                                                                       as fr_name,
+           s.table_name,
+           cast(nukes.exchange_date as date)                                                as exchangedate,
+           right('00' + cast(datepart(trend, nukes.exchange_date) as varchar), 2) + ':00:00' as exchangetrend,
+           sum(isnull(nukes.standard_ppin, '0'))                                         as ppin,
+           0                                                                                 as shell_value,
+           0                                                                                 as showing_ppin,
+           0                                                                                 as showing_shell_value,
+           nukes.source_bomby                                                               as showing_bomby,
+           nukes.status,
+           0                                                                                 as brzo_flag,
+           c.bazar_name                                                                       as bazar_name,
+           c.bazar_magic_id                                                                 as magic_id,
+           datediff(day, '2009-12-31', nukes.exchange_date)                                 as prefix2_date_id,
+           count(*)                                                                          as cnt_group,
+           s.prefix2_table_id,
+           -1                                                                                as ticket_id
+        from prefix1_prefix2.schema.prefix2_ext_nukes_ppin nukes
+                 left join prefix1_prefix2.schema.prefix2_bazar as c
+                           on nukes.bazar_id = c.bazar_id
+                 left join prefix1_prefix2.schema.prefix2_tables s with (nolock)
+                           on nukes.fuzzy_table_id = s.table_id
+        where datediff(day, '2009-12-31', nukes.exchange_date) >= @extract_date_id
+          and nukes.exchange_date >= '2022-09-30 0:00:00'
+        group by nukes.bazar_id,
+                 nukes.fr_name,
+                 s.table_name,
+                 cast(nukes.exchange_date as date),
+                 right('00' + cast(datepart(trend, nukes.exchange_date) as varchar), 2) + ':00:00',
+                 nukes.status,
+                 nukes.source_bomby,
+                 c.bazar_name,
+                 c.bazar_magic_id,
+                 prefix2_table_id,
+                 datediff(day, '2009-12-31', nukes.exchange_date);
+
+    print convert(varchar(255), getdate(), 127) + ' trend_model_searching_show_bombies_bf_pwb_test started';
+
+    delete from prefix1_shows.schema.trend_model_searching_show_bombies_bf_pwb_test where exchangedate >= @extract_timestamp;
+
+
+    insert into prefix1_shows.schema.trend_model_searching_show_bombies_bf_pwb_test
+    select -- UNO
+           cast(searching_with_brzos.uno_ppin_day as decimal(18, 2))                      as uno_ppin_day,
+           cast(searching_with_brzos.uno_shell_value_day as decimal(18, 2))                     as uno_shell_value_day,
+           -- DOS
+           cast(searching_with_brzos.uno_ppin_day * bombies.dos as decimal(18, 2))     as dos_ppin_day,
+           cast(searching_with_brzos.uno_shell_value_day * bombies.dos as decimal(18, 2))    as dos_shell_value_day,
+           -- TRES
+           cast(searching_with_brzos.uno_ppin_day * bombies.tres as decimal(18, 2))     as tres_ppin_day,
+           cast(searching_with_brzos.uno_shell_value_day * bombies.tres as decimal(18, 2))    as tres_shell_value_day,
+           -- No BRZOS UNO
+           cast(searching_without_brzos.uno_ppin_day as decimal(18, 2))                   as uno_ppin_nobrzo_day,
+           cast(searching_without_brzos.uno_shell_value_day as decimal(18, 2))                  as uno_shell_value_nobrzo_day,
+           -- No BRZOS DOS
+           cast(searching_without_brzos.uno_ppin_day * bombies.dos as decimal(18, 2))  as dos_ppin_nobrzo_day,
+           cast(searching_without_brzos.uno_shell_value_day * bombies.dos as decimal(18, 2)) as dos_shell_value_nobrzo_day,
+           -- No BRZOS TRES
+           cast(searching_without_brzos.uno_ppin_day * bombies.tres as decimal(18, 2))  as tres_ppin_nobrzo_day,
+           cast(searching_without_brzos.uno_shell_value_day * bombies.tres as decimal(18, 2)) as tres_shell_value_nobrzo_day,
+           -- Rest of attributes
+           searching_with_brzos.status,
+           searching_with_brzos.fr_name,
+           searching_with_brzos.prefix2_table_id,
+           searching_with_brzos.bazar_id,
+           searching_with_brzos.prefix2_date_id,
+           searching_with_brzos.exchangedate,
+           searching_with_brzos.exchanges,
+           searching_with_brzos.exchangetrend,
+           searching_with_brzos.ticket_id
+        from (
+                 select sum(a.ppin)                                as uno_ppin_day,
+                        sum(shell_value)                                 as uno_shell_value_day,
+                        a.status,
+                        a.fr_name,
+                        a.prefix2_table_id,
+                        a.bazar_id,
+                        a.prefix2_date_id,
+                        cast(cast(a.exchangedate as date) as varchar) as exchangedate,
+                        sum(a.cnt_group)                                 as exchanges,
+                        a.exchangetrend,
+                        a.ticket_id
+                     from prefix1_shows.schema.trend_model_searching_show_bf_pwb_test a with (nolock)
+                     where exchangedate >= @extract_timestamp
+                     group by a.status,
+                              a.fr_name,
+                              a.prefix2_table_id,
+                              a.bazar_id,
+                              a.prefix2_date_id,
+                              cast(cast(a.exchangedate as date) as varchar),
+                              a.exchangetrend,
+                              a.ticket_id
+             ) searching_with_brzos
+                 left join (
+            select sum(a.ppin)                                as uno_ppin_day,
+                   sum(shell_value)                                 as uno_shell_value_day,
+                   a.status,
+                   a.fr_name,
+                   a.prefix2_table_id,
+                   a.bazar_id,
+                   a.prefix2_date_id,
+                   cast(cast(a.exchangedate as date) as varchar) as exchangedate,
+                   sum(a.cnt_group)                                 as exchanges,
+                   a.exchangetrend,
+                   a.ticket_id
+                from prefix1_shows.schema.trend_model_searching_show_bf_pwb_test a with (nolock)
+                where a.exchangedate >= @extract_timestamp
+                  and a.brzo_flag = 0
+                group by a.status,
+                         a.fr_name,
+                         a.prefix2_table_id,
+                         a.bazar_id,
+                         a.prefix2_date_id,
+                         cast(cast(a.exchangedate as date) as varchar),
+                         a.exchangetrend,
+                         a.ticket_id
+        ) searching_without_brzos
+                           on searching_with_brzos.bazar_id = searching_without_brzos.bazar_id
+                               and searching_with_brzos.prefix2_date_id = searching_without_brzos.prefix2_date_id
+                               and searching_with_brzos.prefix2_table_id = searching_without_brzos.prefix2_table_id
+                               and searching_with_brzos.status = searching_without_brzos.status
+                               and searching_with_brzos.fr_name = searching_without_brzos.fr_name
+                               and searching_with_brzos.exchangetrend = searching_without_brzos.exchangetrend
+                               -- null was being compared to null, added constant -99 for comparison
+                               -- to avoid missing searching issue. [Somebody2, 2020-11-19]
+                               and
+                              coalesce(searching_with_brzos.ticket_id, -99) = coalesce(searching_without_brzos.ticket_id, -99)
+                 left join (
+            select dates.date,
+                   tres.value as tres,
+                   dos.value as dos
+                from (
+                         select distinct date
+                             from prefix1_prefix3.schema.rrr_bombies with (nolock)
+                             where year(date) >= 2021
+                     ) dates
+                         left join (
+                    select date, bomby, value
+                        from prefix1_prefix3.schema.rrr_bombies with (nolock)
+                        where upper(bomby) = 'TRES'
+                ) tres
+                                   on dates.date = tres.date
+                         left join (
+                    select date, bomby, value
+                        from prefix1_prefix3.schema.rrr_bombies with (nolock)
+                        where upper(bomby) = 'DOS'
+                ) dos
+                                   on dates.date = dos.date
+        ) bombies
+                           on searching_with_brzos.exchangedate = bombies.date
+        where searching_with_brzos.exchangedate >= '2021-01-01';
+
+    print convert(varchar(255), getdate(), 127) + ' inds_unfiltered_trend_show started';
+
+--PP Started
+    delete from prefix1_shows.schema.trend_model_elixirs_shotouts
+    where prefix2_date_id >= @pp_extract_date_id;
+
+    with sax_pp4 as (
+        select *
+        from prefix1_shows.schema.sax_pp4_differenced_trend
+        where prefix2_date_id >= @pp_extract_date_id
+    )
+
+    insert into prefix1_shows.schema.trend_model_elixirs_shotouts
+    (
+        [prefix2_date_id]
+        , [trend]
+        , [bazar_id]
+        , [table_id]
+        , [property_id]
+        , [source_name]
+        , [iron_path]
+        , [prefix2_table_id]
+        , [channel]
+        , [device]
+        , [magic]
+        , [elixirs]
+        , [filmrate]
+        , [films]
+        , [entries]
+        , [avg_time_on_iron]
+        , [total_icecream]
+        , [unique_icecream]
+        , [ironviews]
+    )
+    select 
+        prefix2_date_id,
+        trend,
+        bazar_id,
+        coalesce(table_id, -1) as table_id,
+        property_id,
+        source_name,
+        iron_path,
+        prefix2_table_id,
+        channel,
+        device,
+        magic,
+        elixirs,
+        null as filmrate,
+        films,
+        entries,
+        avg_time_on_iron,
+        total_icecream,
+        unique_icecream,
+        iron_views
+    from sax_pp4 with (nolock);
+
+    print convert(varchar(255), getdate(), 127) + ' trend_model_tickets_show started';
+
+-- bring axe_tickets to pwb
+    delete from prefix1_shows.schema.trend_model_tickets_show;
+
+    insert into prefix1_shows.schema.trend_model_tickets_show
+    select cast(a.id as bigint) as ticket_id,
+           a.title              as ticket_title,
+           a.ticket_type,
+           a.start_date,
+           a.end_date,
+           c.name,
+           c.main_piecey,
+           c.banana
+        from prefix1_ramm.schema.axe_tickets a with (nolock)
+                 left join prefix1_ramm.schema.axe_ticket_pieceies b with (nolock)
+                           on a.id = b.ticket_id
+                 left join prefix1_ramm.schema.axe_pieceies c with (nolock)
+                           on b.piecey_id = c.id;
+
+
+    print convert(varchar(255), getdate(), 127) + ' trend_model_shotouts_show started';
+
+    insert into prefix1_shows.schema.trend_model_shotouts_show
+    select b.prefix2_date_id                    as prefix2_date_id,
+           a.id                             as shot_id,
+           a.id2                         as id2,
+           a.ticket_id                      as ticket_id,
+           a.created_at                     as created_at,
+           a.created_at_date                as created_at_date,
+           d.bazar_id                        as bazar_id,
+           d.prefix2_table_id                    as prefix2_table_id,
+           format(a.created_at, 'HH:00:00') as trend
+        from (select *
+                  from prefix1_ramm.schema.axe_jumping_shots_bf with (nolock)
+                  where --created_at_date > convert(date, @extract_timestamp)
+                        id > (select coalesce(max(shot_id), 0)
+                                  from prefix1_shows.schema.trend_model_shotouts_show with (nolock))
+             ) a
+                 left join prefix1_prefix2.schema.prefix2_date b with (nolock)
+                           on a.created_at_date = b.prefix2_date
+                 left join prefix1_ramm.schema.axe_tickets c with (nolock)
+                           on a.ticket_id = c.id
+                 left join prefix1_prefix2.schema.prefix2_tables d with (nolock)
+                           on c.bazar_id = d.bazar_id
+                               and c.table_id = d.table_id
+
+
+    print convert(varchar(255), getdate(), 127) + ' trend_model_all_key_rubrik_bf_pwb_test started';
+
+    delete
+        from prefix1_shows.schema.trend_model_all_key_rubrik_bf_pwb_test
+        where prefix2_date_id >= @extract_date_id;
+
+    insert into prefix1_shows.schema.trend_model_all_key_rubrik_bf_pwb_test
+    select all_rubrik.prefix2_date_id,
+           all_rubrik.trend,
+           dates.prefix2_date,
+           all_rubrik.bazar_id,
+           all_rubrik.prefix2_table_id,
+           bazars.bazar_magic_id,
+           bazars.prefix2_bazar_id,
+           tables.table_id,
+           all_rubrik.ticket_id
+        from (
+                 select prefix2_date_id, bazar_id, prefix2_table_id, exchangetrend as trend, coalesce(ticket_id, -1) as ticket_id
+                     from prefix1_shows.schema.trend_model_searching_show_bombies_bf_pwb_test with (nolock)
+                     where prefix2_date_id >= @extract_date_id
+                 union
+                 select prefix2_date_id, bazar_id, prefix2_table_id, trend, -1 as ticket_id
+                     from prefix1_shows.schema.trend_model_elixirs_shotouts with (nolock)
+                     where prefix2_date_id >= @extract_date_id
+                 union
+                 select prefix2_date_id, bazar_id, prefix2_table_id, trend, coalesce(ticket_id, -1) as ticket_id
+                     from prefix1_shows.schema.trend_model_shotouts_show with (nolock)
+                     where prefix2_date_id >= @extract_date_id
+             ) all_rubrik
+                 left join prefix1_prefix2.schema.prefix2_date dates with (nolock)
+                           on all_rubrik.prefix2_date_id = dates.prefix2_date_id
+                 left join prefix1_prefix2.schema.prefix2_bazar bazars with (nolock)
+                           on all_rubrik.bazar_id = bazars.bazar_id
+                 left join prefix1_prefix2.schema.prefix2_tables tables with (nolock)
+                           on all_rubrik.prefix2_table_id = tables.prefix2_table_id;
+
+    print convert(varchar(255), getdate(), 127) + ' get_trend_model_shows_pwb_test is finished';
+
+end;

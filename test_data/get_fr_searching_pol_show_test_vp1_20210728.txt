@@ -1,0 +1,261 @@
+create procedure [schema].[get_fr_searching_pol_show_test_brzo1_20210728]
+as
+begin
+
+drop table if exists prefix1_shows.schema.fr_searching_pol_show_test_brzo1;
+
+select identity(int,1,1) as pwb_pk_id,*
+into prefix1_shows.schema.fr_searching_pol_show_test_brzo1
+-- select a.*
+from (
+	select a.standard_ppin,
+		   a.status,
+		   a.fr_name,
+		   a.prefix2_aff_id,
+		   case 
+		     when a.bazar_id = 999
+		      and a.fr_name like 'tennis'
+		          then a.whabble_bazar_id
+		     else a.bazar_id
+		     end as bazar_id,
+		   a.prefix2_table_id,
+		   a.shell_value,
+		   case 
+			  when a.bazar_id = 999
+			   and (a.whabble_bazar_id = '' or a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+		          then a.bazar_name_scrambled
+			  else c.bazar_host
+		   end as webbazar,
+		   a.exchangedate,
+		   d.prefix2_date_id,
+		   case 
+			  when a.bazar_id = 999 or a.merce_table_id is null
+				   then a.geptd
+			  else s.table_name
+		   end as table,
+		   c.bazar_magic_id,
+		   a.standard_comm_bomby,
+		   a.showing_ppin,
+		   a.showing_comm_bomby,
+		   a.showing_shell_value,
+		   '0' as brzo_flag,
+		   a.fr_id as fr_id,
+		   a.done as done,
+		   a.juicedate as juicedate,
+		   a.book_id	as book_id, 
+		   a.source_ppin as source_ppin,
+		   a.source_shell_value as source_shell_value,
+		   a.origano_bomby as origano_bomby,
+		   a.ticket_id as ticket_id,
+		   case when
+		      ( select count(*)
+                from prefix1_prefix2.schema.prefix2_ext_brzo_ppin as ab
+                where ab.fr_id like a.fr_id + '%'
+					and a.fr_name = ab.fr_name) > 1
+			then 1
+		   else 
+		     0
+		   end as dividend_flag,
+		   1 as dividend_num,
+		   a.fr_id org_fr_id
+	from [prefix1_prefix2].[schema].[prefix2_ext_ppin] a
+	left join prefix1_prefix2.schema.prefix2_tables s on a.prefix2_table_id = s.prefix2_table_id
+	left join prefix1_prefix2.schema.prefix2_bazar c
+		on c.bazar_id =
+		 case 
+		 when a.bazar_id = 999
+		   then a.whabble_bazar_id
+          else a.bazar_id
+		 end 
+  	left join prefix1_prefix2.schema.prefix2_date d
+	    on format(convert(datetime2, a.exchangedate), 'yyyy-MM-dd') = cast(d.prefix2_date AS date)
+    -- Here we state all the DPI that get posted in V1 and since what date.
+	where ((         a.fr_name like 'mimosa%'
+			     and a.exchangedate >= '2017-10-01')
+		    or (     a.fr_name like 'nice'
+			     and a.exchangedate >= '2018-01-01')
+		    or (     a.fr_name like 'flowers%'
+			     and a.exchangedate >= '2018-01-01')
+		    or (     a.fr_name like 'artjumper%'
+			     and a.exchangedate >= '2018-01-01')
+		    or (     a.fr_name like 'gintonic%'
+			     and a.exchangedate >= '2018-01-01')
+            or (     a.fr_name like 'beernet%'
+			     and a.exchangedate >= '2018-03-01')
+		    or (     a.fr_name like 'rome%')
+			or (     a.fr_name = 'gym geography')
+			or (     a.fr_name = 'ecselis')
+			--or (     a.fr_name = 'doubleart')
+			or (     a.fr_name = 'plc')
+			or (     a.fr_name = 'grpc')
+	        or (     a.fr_name = 'andas')
+		    or (     a.fr_name = 'hey')
+		    or (     a.fr_name = 'gintonic')
+			or (     a.fr_name = 'tennis')
+			or (     a.fr_name = 'bulls eye')
+			or (     a.fr_name = 'aeiou')
+		    or (     a.fr_name = 'ppin union')
+            or (     a.fr_name = 'sn')
+			or (     a.fr_name = 'dnr')
+			or (     a.fr_name = 'testament ads')
+			or (     a.fr_name = 'watch out')
+			or (     a.fr_name = 'sepultura')
+			or (     a.fr_name = 'viberllica')
+			or (     a.fr_name = 'megadeth')
+			or (     a.fr_name = 'scake')
+		    or (     a.fr_name like 'zztop%'
+			     and a.exchangedate >= '2018-06-01')
+		    or (     a.fr_name = 'meshuggah'
+                 and a.exchangedate >= '2018-09-01')
+			or (	 a.fr_name like '%wah%cal%')
+			or (     a.fr_name = 'tfr')	)
+		and ( select count(*)
+                from prefix1_prefix2.schema.prefix2_ext_brzo_ppin as ab
+                where ab.fr_id like '%' + a.fr_id + '%'
+					and a.fr_name = ab.fr_name) != 1
+    ) a
+    ;
+
+insert into prefix1_shows.schema.fr_searching_pol_show_test_brzo1
+select a.standard_ppin,
+	case 
+        when a.status = 'canceled' 
+		then 'cancelled'
+		else a.status
+	end as [status],
+	a.fr_name,
+	a.prefix2_aff_id,
+    case 
+		when a.bazar_id = 999
+		then  a.whabble_bazar_id
+		else a.bazar_id
+	end as bazar_id,
+	a.prefix2_table_id,
+	a.shell_value,
+	case 
+		when a.bazar_id = ''
+			and (a.whabble_bazar_id = '' or a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+		then a.bazar_name_scrambled
+		when a.bazar_id = 999
+			and (a.whabble_bazar_id = '' or a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+		then a.bazar_name_scrambled
+		when a.bazar_id is null
+			and (a.whabble_bazar_id = '' or a.whabble_bazar_id = 999 or a.whabble_bazar_id is null)
+		then a.bazar_name_scrambled
+		else ce.bazar_host
+	end as webbazar,
+	coalesce(a.exchangedate_modified, a.exchangedate),
+	de.prefix2_date_id,
+	case 
+		when a.bazar_id = ''
+		then a.geptd
+		when a.bazar_id is not null
+			and a.table_name is null
+		then a.geptd
+		else a.table_name
+	end as table,
+	ce.bazar_magic_id,
+	a.standard_comm_bomby,
+	a.showing_ppin,
+	a.showing_comm_bomby,
+	a.showing_shell_value,
+	a.brzo_flag,
+	a.fr_id as fr_id,
+	b.done as done,
+	b.juicedate as juicedate,
+	b.book_id	as book_id,
+	a.source_ppin as source_ppin,
+	a.source_shell_value as source_shell_value,
+	a.origano_bomby as origano_bomby,
+	null ticket_id,
+	case when
+		( select count(*)
+        from prefix1_prefix2.schema.prefix2_ext_brzo_ppin as ab
+        where ab.fr_id like b.fr_id + '%'
+			and a.fr_name = ab.fr_name) = 1
+	then 0
+	else 
+		2
+	end as dividend_flag,
+	case 
+		when a.fr_id like '%[_]1' then 2
+		when a.fr_id like '%[_]2' then 3
+		when a.fr_id like '%[_]3' then 4
+		when a.fr_id like '%[_]4' then 5
+		when a.fr_id like '%[_]5' then 6
+		else 1
+	end as dividend_num,
+	a.org_fr_id as org_fr_id
+from prefix1_prefix2.schema.prefix2_ext_brzo_ppin as a
+	inner join prefix1_prefix2.schema.prefix2_ext_ppin as b 
+		on a.prefix2_fr_id = b.prefix2_fr_id
+    left join prefix1_prefix2.schema.prefix2_bazar ce
+		on ce.bazar_id = case 
+		    when a.bazar_id = 999
+		    then a.whabble_bazar_id
+            else a.bazar_id
+		end 
+    left join prefix1_prefix2.schema.prefix2_date de 
+        on format(convert(datetime2, coalesce(a.exchangedate_modified, a.exchangedate)), 'yyyy-MM-dd') = 
+            cast(de.prefix2_date AS date)
+where (
+    (a.fr_name like 'mimosa%'
+        and coalesce(a.exchangedate_modified, a.exchangedate) >= '2017-10-01')
+    or (a.fr_name like 'nice'
+		and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-01-01')
+	or (a.fr_name like 'flowers%'
+		and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-01-01')
+	or (a.fr_name like 'artjumper%'
+		and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-01-01')
+	or (a.fr_name like 'gintonic%'
+		and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-01-01')
+	or (a.fr_name like 'beernet%'
+		and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-03-01')
+	or (a.fr_name like 'rome%')
+	or (a.fr_name = 'gym geography')
+	--or (a.fr_name = 'doubleart')
+	or (a.fr_name = 'plc')
+	or (a.fr_name = 'ecselis')
+	or (a.fr_name = 'andas')
+	or (a.fr_name = 'grpc')
+	or (a.fr_name = 'hey')
+	or (a.fr_name = 'gintonic')
+	or (a.fr_name = 'tennis')
+    or (a.fr_name = 'bulls eye')
+    or (a.fr_name = 'aeiou')
+    or (a.fr_name = 'ppin union')
+    or (a.fr_name = 'sn')
+    or (a.fr_name = 'dnr')
+    or (a.fr_name = 'viberllica')
+    or (a.fr_name = 'megadeth')
+    or (a.fr_name = 'scake')
+    or (a.fr_name = 'testament ads')
+    or (a.fr_name = 'watch out')
+    or (a.fr_name = 'sepultura')
+    or (a.fr_name like 'zztop%'
+        and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-06-01')
+    or (a.fr_name = 'meshuggah'
+        and coalesce(a.exchangedate_modified, a.exchangedate) >= '2018-09-01')
+    or (a.fr_name like '%wah%cal%')
+    or (a.fr_name = 'tfr')
+	)
+   and a.brzo_flag in ('0', '1', '2', '5')
+;
+
+
+-- Fix for brb
+update prefix1_shows.schema.fr_searching_pol_show_test_brzo1
+set webbazar = 'www.lasttime.test' 
+where webbazar like '%unoopasquat%'
+    and exchangedate >= '2019-01-21'
+;
+
+
+update prefix1_shows.schema.fr_searching_pol_show_test_brzo1
+set bazar_id = 85 
+where bazar_id = 52
+    and exchangedate >= '2019-01-21'
+;
+
+
+end

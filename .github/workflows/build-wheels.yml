@@ -1,0 +1,106 @@
+on:
+  workflow_call:
+
+jobs:
+  wheels:
+    name: Build wheels on ${{ matrix.os }} for python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Ensure that a wheel builder finishes even if another fails
+      fail-fast: false
+      matrix:
+        # macos-13 is an intel runner, macos-14 is apple silicon
+        os: [ubuntu-latest, windows-2019, macos-13, macos-14]
+        python-version: [38, 39, 310, 311, 312]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        run: |
+          choco install golang -f -y
+          choco install mingw -f -y
+          pip install --force cibuildwheel==2.17.0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        if: runner.os == 'Linux'
+
+      - name: Build Linux wheels and sdist
+        if: runner.os == 'Linux'
+        env:
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_SKIP: "*-win32 *-musllinux_i686 *-musllinux_aarch64 *-musllinux_ppc64le *-musllinux_s390x *-manylinux_i686 *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x"
+          CIBW_BUILD_VERBOSITY: 1
+        run: |
+          pip install --upgrade setuptools
+          pip install cibuildwheel==2.17.0
+          python sql_server_lineage_python/src/setup.py sdist
+          python3 -m cibuildwheel sql_server_lineage_python/src --output-dir wheelhouse
+
+      - name: Build i686 wheel
+        if: runner.os == 'Linux'
+        env:
+          CIBW_ARCHS_LINUX: i686
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_SKIP: "*-win32 *-musllinux_aarch64 *-musllinux_ppc64le *-musllinux_s390x *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x"
+          CIBW_BUILD_VERBOSITY: 1
+        run: |
+          python3 -m cibuildwheel sql_server_lineage_python/src --output-dir wheelhouse
+
+      - name: Build ARM64 wheel
+        if: runner.os == 'Linux'
+        env:
+          CIBW_ARCHS_LINUX: aarch64
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_SKIP: "*-win32 *-musllinux_i686 *-musllinux_aarch64 *-musllinux_ppc64le *-musllinux_s390x *-manylinux_i686 *-manylinux_ppc64le *-manylinux_s390x"
+          CIBW_BUILD_VERBOSITY: 1
+        run: |
+          python3 -m cibuildwheel sql_server_lineage_python/src --output-dir wheelhouse
+
+      - name: Build x86_64 macOS wheels
+        if: runner.os == 'macOS'
+        env:
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_SKIP: "*-win32 *-manylinux_i686 *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x"
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_ARCHS_MACOS: x86_64
+        run: |
+          pip install --upgrade setuptools
+          pip install cibuildwheel==2.17.0
+          python3 -m cibuildwheel sql_server_lineage_python/src --output-dir wheelhouse
+
+      - name: Build arm64 macOS wheels
+        if: runner.os == 'macOS'
+        env:
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_SKIP: "*-win32 *-manylinux_i686 *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x"
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_ARCHS_MACOS: arm64
+          GOARCH: arm64
+          CGO_ENABLED: 1
+        run: |
+          pip install --upgrade setuptools
+          pip install cibuildwheel==2.17.0
+          python3 -m cibuildwheel sql_server_lineage_python/src --output-dir wheelhouse
+
+      - name: Build Windows wheels
+        if: runner.os == 'Windows'
+        env:
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_BUILD_VERBOSITY: 1
+        run: |
+          pip install --upgrade setuptools
+          pip install cibuildwheel==2.17.0
+          python -m cibuildwheel sql_server_lineage_python/src --output-dir wheelhouse
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          path: ./wheelhouse/*.whl
