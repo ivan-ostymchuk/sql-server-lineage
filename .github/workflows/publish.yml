@@ -17,5 +17,5 @@ jobs:
 
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: https://pypi.org/p/sql-server-lineage
+          repository-url: https://pypi.org/p/sql-server-lineage/
           skip-existing: true
