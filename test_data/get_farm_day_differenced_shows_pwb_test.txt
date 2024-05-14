@@ -1,0 +1,493 @@
+create proc [schema].[get_farm_day_differenced_shows_pwb_test] @date_limit_number int=5
+as
+begin
+
+    declare @extract_timestamp as datetime2;
+    declare @extract_date_id as bigint;
+    set @extract_timestamp = cast(getdate() - @date_limit_number as date);
+    set @extract_date_id = datediff(day, '2009-12-31', convert(date, @extract_timestamp))
+
+
+
+    delete from prefix1_shows.schema.farm_fr_searching_merged_show_test where prefix2_date_id >= @extract_date_id;
+
+    print convert(varchar, getdate(), 120) + ' step15 build farm_fr_searching_merged_show_test'
+    insert into prefix1_shows.schema.farm_fr_searching_merged_show_test
+    select coalesce(bazar_id, 999)                                                             as bazar_id,
+           fr_name,
+           table_name,
+           exchangedate,
+           sum(ppin)                                                                    as ppin,
+           sum(shell_value)                                                                   as shell_value,
+           sum(showing_ppin)                                                          as showing_ppin,
+           sum(showing_shell_value)                                                         as showing_shell_value,
+           showing_bomby,
+           [status],
+           via                                                                                as [source],
+           brzo_flag,
+           bazar_name,
+           magic_id,
+           prefix2_date_id,
+           count(*)                                                                           as cnt_group, --number of exchange used per group by
+           coalesce(prefix2_table_id, 0)                                                           as prefix2_table_id,
+           ticket_id,
+           sum(source_ppin)                                                             as source_ppin,
+           source_bomby,
+           sum(source_shell_value)                                                            as source_shell_value,
+           sum(case when source_ppin = 0 and source_shell_value >= 1 then 1 else 0 end) as cnt_zero_ppins,
+           shotout_iron_type_id                                                              as shotout_iron_type_id,
+           shotout_iron_id                                                                   as shotout_iron_id
+        from (
+                 select nukes.bazar_id                                       as bazar_id,
+                        nukes.fr_name                                       as fr_name,
+                        s.table_name,
+                        nukes.exchange_date                              as exchangedate,
+                        nukes.standard_ppin                           as ppin,
+                        nukes.source_ppin                             as source_ppin,
+                        nukes.source_bomby                               as source_bomby,
+                        0                                                 as shell_value,
+                        0                                                 as source_shell_value,
+                        0                                                 as showing_ppin,
+                        0                                                 as showing_shell_value,
+                        nukes.source_bomby                               as showing_bomby,
+                        nukes.status,
+                        'nukes ppins'                                 as via,
+                        0                                                 as brzo_flag,
+                        c.bazar_name                                       as bazar_name,
+                        c.bazar_magic_id                                 as magic_id,
+                        datediff(day, '2009-12-31', nukes.exchange_date) as prefix2_date_id,
+                        s.prefix2_table_id,
+                        null                                                 ticket_id,
+                        null                                              as shotout_iron_type_id,
+                        null                                              as shotout_iron_id
+                     from prefix1_prefix2.schema.prefix2_ext_nukes_ppin nukes
+                              left join prefix1_prefix2.schema.prefix2_bazar as c
+                                        on nukes.bazar_id = c.bazar_id
+                              left join prefix1_prefix2.schema.prefix2_tables s with (nolock)
+                                        on nukes.fuzzy_table_id = s.table_id
+                     where datediff(day, '2009-12-31', nukes.exchange_date) >= @extract_date_id
+
+                 union all
+
+                 select a_me.lookedup_bazar_id                             as bazar_id,
+                        a_me.standard_fr_name                             as fr_name,
+                        a_me.table_name,
+                        a_me.exchangedate,
+                        a_me.standard_ppin                          as ppin,
+                        a_me.standard_ppin                          as source_ppin,
+                        'UNO'                                             as source_bomby,
+                        a_me.standard_shell_value                         as shell_value,
+                        a_me.standard_shell_value                         as source_shell_value,
+                        a_me.showing_ppin,
+                        a_me.showing_shell_value,
+                        c.showing_bomby                              as showing_bomby,
+                        a_me.status,
+                        'manual exchanges'                             as via,
+                        a_me.brzo_flag,
+                        a_me.bazar_name                                    as bazar_name,
+                        c.bazar_magic_id                                 as magic_id,
+                        datediff(day, '2009-12-31', a_me.exchangedate) as prefix2_date_id,
+                        a_me.prefix2_table_id,
+                        null                                                 ticket_id,
+                        null                                              as shotout_iron_type_id,
+                        null                                              as shotout_iron_id
+                     from prefix1_prefix2.schema.prefix2_fr_manual_ppin a_me
+                              left join prefix1_prefix2.schema.prefix2_bazar as c
+                                        on a_me.lookedup_bazar_id = c.bazar_id
+                              left join prefix1_prefix3.schema.rrr_bombies as b
+                                        on lower(c.showing_bomby) = b.bomby
+                                            and cast(a_me.exchangedate as date) = b.date
+                     where datediff(day, '2009-12-31', a_me.exchangedate) >= @extract_date_id
+                       and a_me.lookedup_bazar_id is not null
+
+                 union all
+
+                 -- V1 with bazar_id
+                 select a_vws.bazar_id                          as bazar_id,
+                        case
+                            --when a_vws.brzo_flag in (1,2)
+                            --then 'BRZO'
+                            when a_vws.fr_name like 'rome%'
+                                then 'rome'
+                            else a_vws.fr_name
+                            end                                as fr_name,
+                        a_vws.table                             as table_name,
+                        a_vws.exchangedate                  as exchangedate,
+                        isnull(a_vws.standard_ppin, '0') as ppin,
+                        isnull(a_vws.source_ppin, '0')   as source_ppin,
+                        a_vws.origano_bomby             as source_bomby,
+                        isnull(a_vws.shell_value, '0')         as shell_value,
+                        isnull(a_vws.source_shell_value, '0')  as source_shell_value,
+                        isnull(a_vws.showing_ppin, '0'),
+                        isnull(a_vws.showing_shell_value, '0'),
+                        a_vws.showing_comm_bomby          as showing_bomby,
+                        case
+                            when a_vws.status like 'canceled'
+                                then 'cancelled'
+                            else a_vws.status
+                            end                                as [status],
+                        'V1 with bazar_id'                      as via,
+                        a_vws.brzo_flag,
+                        a_vws.webbazar                          as bazar_name,
+                        a_vws.bazar_magic_id                  as magic_id,
+                        a_vws.prefix2_date_id,
+                        a_vws.prefix2_table_id,
+                        a_vws.ticket_id                        as ticket_id,
+                        a_vws.shotout_iron_type_id            as shotout_iron_type_id,
+                        a_vws.shotout_iron_id                 as shotout_iron_id
+                     from prefix1_shows.schema.fr_searching_pol_show a_vws
+                     where a_vws.prefix2_date_id >= @extract_date_id
+                       and a_vws.bazar_id is not null
+                       and a_vws.bazar_id != 999
+
+                 union all
+                 -- v1 with looked up bazar_id
+                 select b_vls.bazar_id                          as bazar_id,
+                        case
+                            --when a_vls.brzo_flag in (1,2)
+                            --then 'brzo'
+                            when a_vls.fr_name like 'rome%' then 'rome'
+                            else a_vls.fr_name
+                            end                                as fr_name,
+                        a_vls.table                             as table_name,
+                        a_vls.exchangedate                  as exchangedate,
+                        isnull(a_vls.standard_ppin, '0') as ppin,
+                        isnull(a_vls.source_ppin, '0')   as source_ppin,
+                        a_vls.origano_bomby             as source_bomby,
+                        isnull(a_vls.shell_value, '0')         as shell_value,
+                        isnull(a_vls.source_shell_value, '0')  as source_shell_value,
+                        isnull(a_vls.showing_ppin, '0'),
+                        isnull(a_vls.showing_shell_value, '0'),
+                        c.showing_bomby,
+                        case
+                            when a_vls.status like 'canceled'
+                                then 'cancelled'
+                            else a_vls.status
+                            end                                as [status],
+                        'V1 lookup bazar_id'                    as via,
+                        a_vls.brzo_flag,
+                        a_vls.webbazar                          as bazar_name,
+                        a_vls.bazar_magic_id                  as magic_id,
+                        a_vls.prefix2_date_id,
+                        a_vls.prefix2_table_id,
+                        a_vls.ticket_id                        as ticket_id,
+                        a_vls.shotout_iron_type_id            as shotout_iron_type_id,
+                        a_vls.shotout_iron_id                 as shotout_iron_id
+                     from prefix1_shows.schema.fr_searching_pol_show a_vls with (nolock)
+                              left join prefix1_prefix2.schema.prefix2_webbazar_lookup b_vls with (nolock)
+                                        on a_vls.webbazar = b_vls.original_name
+                              left join prefix1_prefix2.schema.prefix2_bazar as c with (nolock)
+                                        on b_vls.bazar_id = c.bazar_id
+
+                     where a_vls.prefix2_date_id >= @extract_date_id
+                       and (
+                             a_vls.bazar_id is null
+                             or a_vls.bazar_id = 999
+                         ) -- we have the bazar id for the others!
+                 --and b_vls.standard_name is not null -- only the ones mapped successfully
+             ) as merge_trans
+        group by bazar_id,
+                 fr_name,
+                 table_name,
+                 prefix2_table_id,
+                 exchangedate,
+                 source_bomby,
+                 status,
+                 showing_bomby,
+                 brzo_flag,
+                 bazar_name,
+                 magic_id,
+                 prefix2_date_id,
+                 via,
+                 ticket_id,
+                 shotout_iron_type_id,
+                 shotout_iron_id;
+
+
+    print convert(varchar, getdate(), 120) +
+          ' step16 update missing showing_ppin farm_fr_searching_merged_show_test'
+    --- What is this ? - we need to leav a select for this entity. - Somebody
+-----------update missing showing_ppin
+    update r
+    set showing_ppin = cast(r.ppin * (
+        case
+            when c.value is not null
+                then c.value
+            when r.showing_bomby = 'UNO'
+                then 1.
+            else 0.
+            end) as decimal(18, 2))
+        from prefix1_shows.schema.farm_fr_searching_merged_show_test as r
+                 left join prefix1_prefix3.schema.rrr_bombies as c with (nolock)
+                           on lower(r.showing_bomby) = c.bomby
+                               and cast(r.exchangedate as date) = c.date
+        where r.prefix2_date_id >= @extract_date_id
+          and r.ppin <> 0
+          and r.showing_ppin = 0
+          and r.showing_bomby is not null;
+
+    print convert(varchar, getdate(), 120) +
+          ' step17 update missing showing_shell_value farm_fr_searching_merged_show_test'
+---------------update missing showing_shell_value
+    update r
+    set showing_shell_value = cast(r.shell_value * (
+        case
+            when c.value is not null
+                then c.value
+            when r.showing_bomby = 'UNO'
+                then 1.
+            else 0.
+            end) as decimal(18, 2))
+        from prefix1_shows.schema.farm_fr_searching_merged_show_test as r
+                 left join prefix1_prefix3.schema.rrr_bombies as c with (nolock)
+                           on lower(r.showing_bomby) = c.bomby
+                               and cast(r.exchangedate as date) = c.date
+        where r.prefix2_date_id >= @extract_date_id
+          and r.shell_value <> 0
+          and r.showing_shell_value = 0
+          and r.showing_bomby is not null;
+
+    print convert(varchar, getdate(), 120) + ' step18 delete farm_fr_searching_merged_show_bombies_test'
+-- Building the searching aggrepption out of the merged
+    delete from prefix1_shows.schema.farm_fr_searching_merged_show_bombies_test where prefix2_date_id >= @extract_date_id;
+
+    print convert(varchar, getdate(), 120) + ' step19 build farm_fr_searching_merged_show_bombies_test'
+    insert into prefix1_shows.schema.farm_fr_searching_merged_show_bombies_test
+    ( [uno_ppin_day]
+    , [uno_shell_value_day]
+    , [dos_ppin_day]
+    , [dos_shell_value_day]
+    , [tres_ppin_day]
+    , [tres_shell_value_day]
+    , [uno_ppin_nobrzo_day]
+    , [uno_shell_value_nobrzo_day]
+    , [dos_ppin_nobrzo_day]
+    , [dos_shell_value_nobrzo_day]
+    , [tres_ppin_nobrzo_day]
+    , [tres_shell_value_nobrzo_day]
+    , [STATUS]
+    , [fr_name]
+    , [prefix2_table_id]
+    , [bazar_id]
+    , [prefix2_date_id]
+    , [exchangedate]
+    , [exchanges]
+    , [brzo_flag]
+    , [ticket_id]
+    , [zero_ppin_exchanges]
+    , [shotout_iron_type_id]
+    , [shotout_iron_id])
+    select
+
+        -- UNO
+        cast(searching_with_brzos.uno_ppin_day as decimal(18, 2))  as uno_ppin_day,
+        cast(searching_with_brzos.uno_shell_value_day as decimal(18, 2)) as uno_shell_value_day,
+        -- DOS
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'DOS' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.dos as decimal(18, 2))
+            end                                                      as dos_ppin_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'DOS' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.dos as decimal(18, 2))
+            end                                                      as dos_shell_value_day,
+        -- TRES
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'TRES' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.tres as decimal(18, 2))
+            end                                                      as tres_ppin_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'TRES' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.tres as decimal(18, 2))
+            end                                                      as tres_shell_value_day,
+        -- No BRZOS UNO
+        cast(searching_with_brzos.uno_ppin_day as decimal(18, 2))  as uno_ppin_nobrzo_day,
+        cast(searching_with_brzos.uno_shell_value_day as decimal(18, 2)) as uno_shell_value_nobrzo_day,
+        -- No BRZOS DOS
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'DOS' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.dos as decimal(18, 2))
+            end                                                      as dos_ppin_nobrzo_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'DOS' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.dos as decimal(18, 2))
+            end                                                      as dos_shell_value_nobrzo_day,
+        -- No BRZOS TRES
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'TRES' then searching_with_brzos.source_ppin
+            else
+                cast(searching_with_brzos.uno_ppin_day * bombies.tres as decimal(18, 2))
+            end                                                      as tres_ppin_nobrzo_day,
+        case
+            when
+                upper(searching_with_brzos.source_bomby) = 'TRES' then searching_with_brzos.source_shell_value
+            else
+                cast(searching_with_brzos.uno_shell_value_day * bombies.tres as decimal(18, 2))
+            end                                                      as tres_shell_value_nobrzo_day,
+        -- Rest of attributes
+        searching_with_brzos.status,
+        searching_with_brzos.fr_name,
+        searching_with_brzos.prefix2_table_id,
+        searching_with_brzos.bazar_id,
+        searching_with_brzos.prefix2_date_id,
+        searching_with_brzos.exchangedate,
+        searching_with_brzos.exchanges,
+        searching_with_brzos.brzo_flag,
+        searching_with_brzos.ticket_id,
+        searching_with_brzos.zero_ppin_exchanges,
+        searching_with_brzos.shotout_iron_type_id,
+        searching_with_brzos.shotout_iron_id
+        from (
+                 select sum(a.ppin)                                as uno_ppin_day,
+                        sum(shell_value)                                 as uno_shell_value_day,
+                        sum(a.source_ppin)                         as source_ppin,
+                        sum(a.source_shell_value)                        as source_shell_value,
+                        a.source_bomby,
+                        a.status,
+                        a.fr_name,
+                        a.prefix2_table_id,
+                        a.bazar_id,
+                        a.prefix2_date_id,
+                        a.brzo_flag,
+                        a.ticket_id,
+                        cast(cast(a.exchangedate as date) as varchar) as exchangedate,
+                        sum(a.cnt_group)                                 as exchanges,
+                        sum(a.cnt_zero_ppins)                      as zero_ppin_exchanges,
+                        a.shotout_iron_type_id,
+                        a.shotout_iron_id
+                     from prefix1_shows.schema.farm_fr_searching_merged_show_test a with (nolock)
+                     where prefix2_date_id >= @extract_date_id
+                     group by a.source_bomby,
+                              a.status,
+                              a.fr_name,
+                              a.prefix2_table_id,
+                              a.bazar_id,
+                              a.prefix2_date_id,
+                              a.brzo_flag,
+                              a.ticket_id,
+                              a.shotout_iron_type_id,
+                              a.shotout_iron_id,
+                              cast(cast(a.exchangedate as date) as varchar)
+             ) searching_with_brzos
+                 left join
+             (
+                 select dates.date,
+                        tres.value as tres,
+                        dos.value as dos
+                     from (
+                              select distinct date
+                                  from prefix1_prefix3.schema.rrr_bombies with (nolock)
+                          ) dates
+                              left join (
+                         select date, bomby, value
+                             from prefix1_prefix3.schema.rrr_bombies with (nolock)
+                             where bomby like 'tres'
+                     ) tres
+                                        on dates.date = tres.date
+                              left join (
+                         select date, bomby, value
+                             from prefix1_prefix3.schema.rrr_bombies
+                             where bomby like 'dos'
+                     ) dos
+                                        on dates.date = dos.date
+             ) bombies on searching_with_brzos.exchangedate = bombies.date
+
+
+    print convert(varchar, getdate(), 120) + ' step20 build farm_fr_searching_merged_show_bombies_test'
+    -- We add to the searching entity table all the missing rubrik from the elixirs in shell to add an Beerate Party Name.
+-- This way when people try to calculate something in Pwb we wont see empty DPIs
+    insert into prefix1_shows.schema.farm_fr_searching_merged_show_bombies_test(status,
+                                                                               fr_name,
+                                                                               prefix2_table_id,
+                                                                               bazar_id,
+                                                                               prefix2_date_id,
+                                                                               exchanges,
+                                                                               brzo_flag,
+                                                                               shotout_iron_type_id,
+                                                                               shotout_iron_id
+                                                                               )
+    select distinct 'rrrirmed' status,
+                    case
+                        when (tables.prefferred_fr_name is null)
+                            --or tables.prefferred_fr_name like 'uncompensated')
+                            then 'Not assigned'
+                        else lower(tables.prefferred_fr_name)
+                        end as  fr_name,
+                    a.prefix2_table_id,
+                    a.bazar_id,
+                    a.prefix2_date_id,
+                    0           exchanges,
+                    0           brzo_flag,
+                    null        shotout_iron_type_id,
+                    null        shotout_iron_id
+        from prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim a with (nolock)
+                 left join prefix1_shows.schema.farm_tables_with_state tables with (nolock)
+                           on a.prefix2_table_id = tables.prefix2_table_id
+        where a.prefix2_date_id >= @extract_date_id
+          and not exists(
+                select null
+                    from prefix1_shows.schema.farm_fr_searching_merged_show_bombies_test b with (nolock)
+                    where b.prefix2_date_id >= @extract_date_id
+                      and a.prefix2_date_id = b.prefix2_date_id
+                      and a.prefix2_table_id = b.prefix2_table_id
+                      and a.bazar_id = b.bazar_id
+            );
+
+    print convert(varchar, getdate(), 120) + ' step21 delete farm_all_key_rubrik_pwb_test'
+    delete
+        from prefix1_shows.schema.farm_all_key_rubrik_pwb_test
+        where prefix2_date_id >= @extract_date_id;
+
+    print convert(varchar, getdate(), 120) + ' step22 build farm_all_key_rubrik_pwb_test'
+    -- get all possible rubrik from searching, elixirs and shotouts
+    -- so if data is missing in one table, the rest of the data is not missed.
+    -- to avoid surplus data, logic is implemented in smt appinst each join
+    -- of searching, elixirs and shotouts [Lll, 2020-12-23]
+    insert into prefix1_shows.schema.farm_all_key_rubrik_pwb_test
+    (prefix2_date_id, prefix2_date, bazar_id, prefix2_table_id, bazar_magic_id, prefix2_bazar_id, table_id,
+     ticket_id, shotout_iron_type_id, shotout_iron_id)
+    select all_rubrik.prefix2_date_id,
+           dates.prefix2_date,
+           all_rubrik.bazar_id,
+           all_rubrik.prefix2_table_id,
+           bazars.bazar_magic_id,
+           bazars.prefix2_bazar_id,
+           tables.table_id,
+           all_rubrik.ticket_id,
+           all_rubrik.shotout_iron_type_id,
+           all_rubrik.shotout_iron_id
+        from (
+                 select prefix2_date_id, bazar_id, prefix2_table_id, ticket_id, shotout_iron_type_id, shotout_iron_id
+                     from prefix1_shows.schema.farm_fr_searching_merged_show_bombies_test with (nolock)
+                     where prefix2_date_id >= @extract_date_id
+                 union
+                 select prefix2_date_id, bazar_id, prefix2_table_id, null as ticket_id, null as shotout_iron_type_id, null as shotout_iron_id
+                     from prefix1_shows.schema.farm_day_differenced_elixirs_shotouts_dim with (nolock)
+                     where prefix2_date_id >= @extract_date_id
+                 union
+                 select prefix2_date_id, bazar_id, prefix2_table_id, ticket_id, null as shotout_iron_type_id, null as shotout_iron_id
+                     from prefix1_shows.schema.farm_shotouts_show with (nolock)
+                     where prefix2_date_id >= @extract_date_id
+             ) all_rubrik
+                 left join prefix1_prefix2.schema.prefix2_date dates with (nolock)
+                           on all_rubrik.prefix2_date_id = dates.prefix2_date_id
+                 left join prefix1_prefix2.schema.prefix2_bazar bazars with (nolock)
+                           on all_rubrik.bazar_id = bazars.bazar_id
+                 left join prefix1_prefix2.schema.prefix2_tables tables with (nolock)
+                           on all_rubrik.prefix2_table_id = tables.prefix2_table_id;
+
+    print convert(varchar, getdate(), 120) + 'Frog Rebuild Finished'
+end

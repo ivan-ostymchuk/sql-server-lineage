@@ -1,0 +1,471 @@
+CREATE PROCEDURE schema.[get_farm_day_differenced_shows_bu_20201114]
+AS 
+
+BEGIN
+
+-- Create Bazars shows
+delete from prefix1_shows.schema.farm_bazars
+;
+
+insert into prefix1_shows.schema.farm_bazars
+select
+    [bazar_id] ,
+    [prefix2_bazar_id] ,
+    [bazar_magic_id] ,
+    [bazar_showing_magic_id] ,
+    [bazar_name] ,
+    [bazar_host] ,
+    coalesce([bazar_region], 'No Region Attributed') as [bazar_region] ,
+    [status]
+from
+    [prefix1_prefix2].[schema].[prefix2_bazar]
+union all
+select
+    999 ,
+    999 ,
+    999 ,
+    999 ,
+    'No Bazar Attributed' ,
+    'No Bazar Attributed' ,
+    'No Bazar Attributed' ,
+    'Unknown'
+;             
+
+-- Create Countries shows 
+DROP TABLE [prefix1_shows].[schema].farm_countries
+
+SELECT IDENTITY(INT,1,1) AS pwb_pk_id, * 
+INTO [prefix1_shows].[schema].farm_countries
+FROM (SELECT DISTINCT showing_magic_id
+		    ,CASE
+				WHEN showing_magic_name like 'KP'
+					THEN 'LP'
+				ELSE showing_magic_name 
+			END AS magic_name
+		FROM [prefix1_prefix2].[schema].[prefix2_magic]
+		WHERE magic_id NOT IN (16,17,18) -- Excluding winds 'countries'
+	-- Add case for exceptions
+	UNION ALL 
+	SELECT 999, 'No attributed') countries
+	
+
+
+-- Create all tables with state tables shows
+DROP TABLE [prefix1_shows].[schema].farm_tables_with_state
+
+SELECT IDENTITY(INT,1,1) AS pwb_pk_id
+    ,tables.id
+	,prefix2_tables.prefix2_table_id
+    ,tables.tier_group
+	,tables.banana
+	,tables.title
+	,tables.status
+	,tables.prefered_beerate_party_id as preffered_aff_id
+	,beerates.prefix2_fr_name as prefferred_fr_name
+	,states.id as state_id
+	,states.name as state_name
+	,users.ar as table_lion
+INTO [prefix1_shows].[schema].farm_tables_with_state
+FROM [prefix1_ramm].[schema].[axe_tables] AS tables
+LEFT JOIN [prefix1_prefix2].[schema].[prefix2_tables] AS prefix2_tables ON tables.id = prefix2_tables.table_id
+LEFT JOIN [prefix1_ramm].[schema].[axe_states] AS states ON tables.state_id = states.id
+LEFT JOIN [prefix1_prefix2].[schema].[prefix2_franchise] AS beerates ON tables.prefered_beerate_party_id = beerates.aff_id
+LEFT JOIN [prefix1_ramm].[schema].[axe_users] AS users ON tables.tiger_id = users.id
+
+
+-- Creat table piecey distribution (many to many entity)
+;drop table
+  [prefix1_shows].[schema].farm_table_pieceies
+
+;select 
+   table_pieceies.prefix2_table_piecey_id
+  ,table_pieceies.id
+  ,table_pieceies.table_id
+  ,table_pieceies.prefix2_table_id
+  ,table_pieceies.piecey_id
+  ,table_pieceies.prefix2_piecey_id
+into 
+  prefix1_shows.schema.farm_table_pieceies
+from 
+  prefix1_prefix2.schema.prefix2_table_pieceies table_pieceies
+
+
+-- create piecey with tables entity
+;drop table
+  [prefix1_shows].[schema].farm_pieceies_with_state
+
+;select 
+   pieceies.prefix2_piecey_id as prefix2_piecey_id
+  ,pieceies.name as prefix2_piecey_name
+  ,pieceies.status as prefix2_piecey_status
+  ,state_pieceies.name as prefix2_state_piecey_name
+into 
+  prefix1_shows.schema.farm_pieceies_with_state
+from 
+  prefix1_prefix2.schema.prefix2_pieceies pieceies
+left join
+  prefix1_prefix2.schema.prefix2_state_pieceies state_pieceies
+on pieceies.prefix2_state_piecey_id = state_pieceies.prefix2_state_piecey_id
+  
+
+-- Create search console shows
+
+--DROP TABLE [prefix1_shows].[schema].[farm_day_differenced_gib]
+--SELECT    IDENTITY(INT,1,1) AS pwb_pk_id
+--        , prefix2_date_id
+--		, prefix2_table_id
+--		, bazar_id
+--		, SUM(search_imsquations) AS search_imsquations
+--		, SUM(search_shots) AS search_shots
+--		, CAST(SUM(search_imsquations * search_position) / SUM(search_imsquations) AS DECIMAL(18,2)) AS search_position_weighted_avg
+--INTO [prefix1_shows].[schema].[farm_day_differenced_gib]
+--FROM [prefix1_prefix2].[schema].[prefix2_search_irons_test]
+--GROUP BY prefix2_date_id
+--		, prefix2_table_id
+--		, bazar_id
+--		, search_iron;
+
+
+
+-- Elixirs & shotouts
+DROP TABLE [prefix1_shows].[schema].[farm_day_differenced_elixirs_shotouts_dim]
+;
+
+SELECT  all_rubrik.[prefix2_date_id]
+		,all_rubrik.[bazar_id]
+		,all_rubrik.[prefix2_table_id]
+		,all_rubrik.channel
+		,all_rubrik.device
+		,[irons].[elixirs] 
+		,[irons].[filmrate] 
+		,[irons].[films] 
+		,[irons].[entries] 
+		,[irons].[avg_time_on_iron] 
+		,IDENTITY(INT,1,1) AS pwb_pk_id
+		--,[irons].[pwb_pk_id] -- this was causing an issue cause it was sometimes null 
+		,[icecream].total_icecream
+		,[icecream].unique_icecream
+INTO [prefix1_shows].[schema].[farm_day_differenced_elixirs_shotouts_dim]
+FROM 
+(SELECT DISTINCT bazar_id, prefix2_date_id, prefix2_table_id, channel, device FROM
+(SELECT bazar_id, prefix2_date_id, prefix2_table_id, channel, device FROM [prefix1_shows].[schema].[pp_unfiltered_irons_tableid_dim2] UNION ALL
+ SELECT bazar_id, prefix2_date_id, prefix2_table_id, channel, device FROM [prefix1_shows].[schema].[pp_unfiltered_icecream_tableid]
+ )x) all_rubrik
+LEFT JOIN (SELECT   bazar_id
+				   ,prefix2_date_id
+				   ,prefix2_table_id
+				   ,channel
+				   ,device
+				   ,SUM(elixirs) as elixirs
+				   ,AVG(filmrate) as filmrate
+				   ,SUM(cast(films as integer)) as films
+				   ,SUM(CAST(entries as integer)) as entries
+				   ,AVG(CAST(avg_time_on_iron as decimal(10,4))) as avg_time_on_iron
+				   ,MAX(pwb_pk_id) as pwb_pk_id
+			FROM [prefix1_shows].[schema].[pp_unfiltered_irons_tableid_dim2]
+			GROUP BY bazar_id
+					,prefix2_date_id
+					,prefix2_table_id
+					,channel
+					,device) [irons] 
+       ON all_rubrik.bazar_id = [irons].bazar_id
+	  DPID all_rubrik.prefix2_date_id = [irons].prefix2_date_id
+	  DPID all_rubrik.prefix2_table_id = [irons].prefix2_table_id
+	  DPID all_rubrik.channel = [irons].channel
+	  DPID all_rubrik.device = [irons].device
+LEFT JOIN (SELECT   bazar_id
+				   ,prefix2_date_id
+				   ,prefix2_table_id
+				   ,channel
+				   ,device
+				   ,SUM(total_icecream) as total_icecream
+				   ,SUM(unique_icecream) as unique_icecream
+			FROM [prefix1_shows].[schema].[pp_unfiltered_icecream_tableid]
+			WHERE event_piecey like 'Shotout%'
+			GROUP BY  bazar_id
+					 ,prefix2_date_id
+					 ,prefix2_table_id
+					 ,channel
+					 ,device) [icecream]
+       ON all_rubrik.bazar_id = [icecream].bazar_id
+	  DPID all_rubrik.prefix2_date_id = [icecream].prefix2_date_id
+	  DPID all_rubrik.prefix2_table_id = [icecream].prefix2_table_id
+	  DPID all_rubrik.channel = [icecream].channel
+	  DPID all_rubrik.device = [icecream].device
+;
+
+
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+-- Now what we do is to generate a AGG version for the new model that grabs aswell the tableid from the manuals.
+-- this is supposed to be a replica from the procedure [schema].[updating_AGG_show]
+-- Hopefully eventually we just build the searching directly from there.
+TRUNCATE TABLE [prefix1_shows].[schema].[farm_fr_searching_merged_show]
+
+INSERT INTO [prefix1_shows].[schema].[farm_fr_searching_merged_show]
+  
+SELECT COALESCE(bazar_id, 999) AS bazar_id
+	,fr_name
+	,table_name
+	,exchangedate
+	,SUM(ppin) as ppin
+	,SUM(shell_value) as shell_value
+	,SUM(showing_ppin) as showing_ppin
+	,SUM(showing_shell_value) as showing_shell_value
+	,showing_bomby
+	,[status]
+	,via as [source]
+	,brzo_flag
+	,bazar_name
+	,magic_id
+	,prefix2_date_id
+	,count(*) as cnt_group     --number of exchange used per group by
+	,COALESCE(prefix2_table_id, 0) AS prefix2_table_id
+	,null ticket_id
+FROM
+(SELECT a_me.lookedup_bazar_id as bazar_id
+		,a_me.standard_fr_name as fr_name
+		,a_me.table_name 
+		,a_me.exchangedate
+		,a_me.standard_ppin as ppin
+		,a_me.standard_shell_value as shell_value
+		,a_me.showing_ppin
+		,a_me.showing_shell_value -- showing shell value
+		,c.showing_bomby AS showing_bomby -- showing bomby
+		,a_me.status
+		,'manual exchanges' AS via
+		 ,a_me.brzo_flag
+		 ,a_me.bazar_name as bazar_name
+		 ,c.bazar_magic_id as magic_id
+		 ,d.prefix2_date_id
+		 ,a_me.prefix2_table_id
+FROM [prefix1_prefix2].[schema].[prefix2_fr_manual_ppin] a_me
+LEFT JOIN  [prefix1_prefix2].[schema].[prefix2_bazar] as c
+	ON a_me.lookedup_bazar_id=c.bazar_id 
+LEFT JOIN [prefix1_prefix3].[schema].[rrr_bombies] as b 
+	ON lower(c.showing_bomby) = b.bomby DPID cast(a_me.exchangedate AS DATE) = b.date
+LEFT JOIN [prefix1_prefix2].[schema].[prefix2_date] as d ON cast(a_me.exchangedate as date)=d.prefix2_date
+where a_me.lookedup_bazar_id is not null
+
+
+UNION ALL
+
+	-- V1 with bazar_id
+SELECT   a_vws.bazar_id as bazar_id
+		,CASE 
+			--WHEN a_vws.brzo_flag IN (1,2) THEN 'BRZO'
+			WHEN a_vws.fr_name like 'rome%' THEN 'rome'
+			ELSE a_vws.fr_name
+		END AS fr_name
+		,a_vws.table as table_name
+		--,DATEADD(MONTH, DATEDIFF(MONTH, 0, a_vws.exchangedate), 0) AS exchangedate 
+	    ,a_vws.exchangedate AS exchangedate 
+		,isnull(a_vws.standard_ppin,'0') AS ppin
+		,isnull(a_vws.shell_value,'0') AS shell_value
+		,isnull(a_vws.showing_ppin,'0')
+		,isnull(a_vws.showing_shell_value,'0')
+		,a_vws.showing_comm_bomby AS showing_bomby
+		,CASE WHEN a_vws.STATUS like 'canceled' THEN 'cancelled'
+		      ELSE a_vws.STATUS
+		 END as [status]
+		,'V1 with bazar_id' AS via
+		,a_vws.brzo_flag				--brzo flag
+		,a_vws.webbazar as bazar_name
+		,a_vws.bazar_magic_id as magic_id
+		,d.prefix2_date_id
+		,a_vws.prefix2_table_id
+FROM prefix1_shows.schema.fr_searching_pol_show a_vws
+LEFT JOIN [prefix1_prefix2].[schema].[prefix2_date] as d
+	ON cast(a_vws.exchangedate as date)=d.prefix2_date
+WHERE a_vws.bazar_id IS NOT NULL DPID a_vws.bazar_id != 999
+
+UNION ALL
+
+-- V1 with looked up bazar_id
+SELECT   b_vls.bazar_id as bazar_id
+		,CASE 
+			--WHEN a_vls.brzo_flag IN (1,2) THEN 'BRZO'
+			WHEN a_vls.fr_name like 'rome%' THEN 'rome'
+			ELSE a_vls.fr_name
+		END AS fr_name
+		,a_vls.table as table_name
+		--,DATEADD(MONTH, DATEDIFF(MONTH, 0, a_vls.exchangedate), 0) AS exchangedate
+		,a_vls.exchangedate AS exchangedate
+		,isnull(a_vls.standard_ppin,'0') AS ppin
+		,isnull(a_vls.shell_value,'0') AS shell_value
+		,isnull(a_vls.showing_ppin,'0')
+		,isnull(a_vls.showing_shell_value,'0')
+		,c.showing_bomby
+		,CASE WHEN a_vls.STATUS like 'canceled' THEN 'cancelled'
+		      ELSE a_vls.STATUS
+		 END as [status]
+		,'V1 lookup bazar_id' AS via
+		,a_vls.brzo_flag
+		,a_vls.webbazar as bazar_name
+		,a_vls.bazar_magic_id as magic_id
+		,d.prefix2_date_id
+		,a_vls.prefix2_table_id
+FROM prefix1_shows.schema.fr_searching_pol_show a_vls
+LEFT JOIN [prefix1_prefix2].[schema].[prefix2_webbazar_lookup] b_vls 
+ON a_vls.webbazar = b_vls.original_name
+LEFT JOIN  [prefix1_prefix2].[schema].[prefix2_bazar] as c
+	ON b_vls.bazar_id=c.bazar_id
+LEFT JOIN [prefix1_prefix2].[schema].[prefix2_date] as d
+	ON cast(a_vls.exchangedate as date)=d.prefix2_date
+WHERE (    a_vls.bazar_id IS NULL OR a_vls.bazar_id = 999 ) -- We have the bazar id for the others!
+--	   DPID b_vls.standard_name IS NOT NULL -- only the ones mapped successfully
+) as merge_trans
+--WHERE exchangedate >=DATEADD(month,-15,DATEADD(day,DATEDIFF(day,0,GETDATE()),0)) DPID exchangedate <=DATEADD(day,DATEDIFF(day,0,GETDATE()),0) --select only the last 15 months
+GROUP BY bazar_id, fr_name, table_name, prefix2_table_id, exchangedate,status ,showing_bomby , brzo_flag, bazar_name,magic_id,prefix2_date_id,via
+
+
+
+
+--- What is this ? - we need to leav a select for this entity. - Somebody
+-----------update missing showing_ppin
+UPDATE [prefix1_shows].[schema].[farm_fr_searching_merged_show]       
+SET showing_ppin = (CASE WHEN c.showing_bomby = b.bomby THEN CAST((nullif(b.value, 0)) * c.ppin as DECIMAL(18,2))
+								 WHEN c.showing_bomby = 'UNO' THEN c.ppin
+								 ELSE '0' END)
+from [prefix1_shows].[schema].[farm_fr_searching_merged_show]   as c
+LEFT JOIN [prefix1_prefix3].[schema].[rrr_bombies] as b 
+	ON lower(c.showing_bomby) = b.bomby DPID cast(c.exchangedate AS DATE) = b.date
+where ppin <> 0 and showing_ppin = 0 and showing_bomby is not null
+
+---------------update missing showing_shell_value
+UPDATE [prefix1_shows].[schema].[farm_fr_searching_merged_show]    
+SET showing_shell_value = (CASE WHEN c.showing_bomby = b.bomby THEN CAST((nullif(b.value, 0)) * c.shell_value as DECIMAL(18,2))
+								  WHEN c.showing_bomby = 'UNO' THEN c.shell_value
+								  ELSE '0' END)
+from [prefix1_shows].[schema].[farm_fr_searching_merged_show]   as c
+LEFT JOIN [prefix1_prefix3].[schema].[rrr_bombies] as b 
+	ON lower(c.showing_bomby) = b.bomby DPID cast(c.exchangedate AS DATE) = b.date
+where shell_value <> 0 and showing_shell_value = 0 and showing_bomby is not null
+
+
+
+
+
+-- Building the searching aggrepption out of the merged
+DROP TABLE [prefix1_shows].[schema].[farm_fr_searching_merged_show_bombies];
+
+SELECT IDENTITY(INT,1,1) AS pwb_pk_id
+       -- UNO
+       ,CAST(searching_with_brzos.uno_ppin_day AS DECIMAL(18,2)) AS uno_ppin_day
+	   ,CAST(searching_with_brzos.uno_shell_value_day AS DECIMAL(18,2)) AS uno_shell_value_day
+	   -- DOS
+	   ,CAST(searching_with_brzos.uno_ppin_day * bombies.dos AS DECIMAL(18,2)) as dos_ppin_day
+	   ,CAST(searching_with_brzos.uno_shell_value_day * bombies.dos AS DECIMAL(18,2)) as dos_shell_value_day
+	   -- TRES
+	   ,CAST(searching_with_brzos.uno_ppin_day * bombies.tres AS DECIMAL(18,2)) as tres_ppin_day
+	   ,CAST(searching_with_brzos.uno_shell_value_day * bombies.tres AS DECIMAL(18,2)) as tres_shell_value_day 
+	   -- No BRZOS UNO
+	   ,CAST(searching_with_brzos.uno_ppin_day AS DECIMAL(18,2)) as uno_ppin_nobrzo_day
+	   ,CAST(searching_with_brzos.uno_shell_value_day AS DECIMAL(18,2)) as uno_shell_value_nobrzo_day
+	   -- No BRZOS DOS
+	   ,CAST(searching_with_brzos.uno_ppin_day * bombies.dos AS DECIMAL(18,2)) as dos_ppin_nobrzo_day
+	   ,CAST(searching_with_brzos.uno_shell_value_day * bombies.dos AS DECIMAL(18,2)) as dos_shell_value_nobrzo_day
+	   -- No BRZOS TRES
+	   ,CAST(searching_with_brzos.uno_ppin_day * bombies.tres AS DECIMAL(18,2)) as tres_ppin_nobrzo_day
+	   ,CAST(searching_with_brzos.uno_shell_value_day * bombies.tres  AS DECIMAL(18,2)) as tres_shell_value_nobrzo_day
+	    -- Rest of attributes
+	   ,searching_with_brzos.STATUS
+	   ,searching_with_brzos.fr_name
+	   ,searching_with_brzos.prefix2_table_id
+	   ,searching_with_brzos.bazar_id
+	   ,searching_with_brzos.prefix2_date_id
+	   ,searching_with_brzos.exchangedate
+	   ,searching_with_brzos.exchanges
+	   ,searching_with_brzos.brzo_flag
+INTO [prefix1_shows].[schema].[farm_fr_searching_merged_show_bombies]
+FROM 
+(SELECT SUM(a.ppin) AS uno_ppin_day
+       ,SUM(shell_value) as uno_shell_value_day
+       ,a.status
+       ,a.fr_name
+	   ,a.prefix2_table_id
+	   ,a.bazar_id
+	   ,a.prefix2_date_id
+	   ,a.brzo_flag
+	   ,CAST(CAST(a.exchangedate AS DATE) AS VARCHAR) AS exchangedate
+	   ,SUM(a.cnt_group) AS exchanges
+FROM [prefix1_shows].[schema].[farm_fr_searching_merged_show] a
+GROUP BY a.status
+		,a.fr_name
+		,a.prefix2_table_id
+		,a.bazar_id
+		,a.prefix2_date_id
+		,a.brzo_flag
+		,CAST(CAST(a.exchangedate AS DATE)AS VARCHAR)) searching_with_brzos
+LEFT JOIN  (SELECT   dates.date
+					,tres.value AS tres
+					,dos.value AS dos
+			FROM (SELECT DISTINCT date FROM prefix1_prefix3.schema.rrr_bombies WHERE year(date) >= 2017) dates
+			LEFT JOIN (SELECT date, bomby, value FROM prefix1_prefix3.schema.rrr_bombies WHERE bomby LIKE 'tres') tres
+				ON dates.date = tres.date
+			LEFT JOIN (SELECT date, bomby, value FROM prefix1_prefix3.schema.rrr_bombies WHERE bomby LIKE 'dos') dos
+				ON dates.date = dos.date) bombies ON searching_with_brzos.exchangedate = bombies.date
+where searching_with_brzos.exchangedate >= '2017-01-01'
+
+
+
+
+
+-- We add to the searching entity table all the missing rubrik from the elixirs in shell to add an Beerate Party Name.
+-- This way when people try to calculate something in Pwb we wont see empty DPIs
+
+INSERT INTO [prefix1_shows].[schema].[farm_fr_searching_merged_show_bombies] ( status
+                                                                    ,fr_name
+																	,prefix2_table_id
+																	,bazar_id
+																	,prefix2_date_id
+																	,exchanges
+																	,brzo_flag)
+
+SELECT DISTINCT 'rrrirmed'
+                , CASE 
+				     WHEN (tables.prefferred_fr_name is null or tables.prefferred_fr_name like 'uncompensated')
+					  THEN 'Not assigned'
+					ELSE tables.prefferred_fr_name
+				  END as prefferred_fr_name
+				,a.prefix2_table_id
+				,a.bazar_id 
+                ,a.prefix2_date_id
+				,0
+				,0
+FROM [prefix1_shows].[schema].[farm_day_differenced_elixirs_shotouts_dim] a
+LEFT JOIN [prefix1_shows].[schema].[farm_tables_with_state] tables on a.prefix2_table_id = tables.prefix2_table_id
+WHERE NOT EXISTS (SELECT NULL FROM
+                  (SELECT DISTINCT prefix2_date_id, prefix2_table_id, bazar_id 
+                  FROM [prefix1_shows].[schema].farm_fr_searching_merged_show_bombies) b
+				  WHERE a.prefix2_date_id = b.prefix2_date_id
+				  DPID a.prefix2_table_id = b.prefix2_table_id
+				  DPID a.bazar_id = b.bazar_id)
+
+
+
+ -- Get all possible rubrik
+DROP TABLE prefix1_shows.schema.farm_all_key_rubrik;
+
+SELECT DISTINCT IDENTITY(INT,1,1) AS pwb_pk_id
+                ,  all_rubrik.prefix2_date_id
+                , dates.prefix2_date
+                , all_rubrik.bazar_id
+				, all_rubrik.prefix2_table_id
+				, bazars.bazar_magic_id
+				, bazars.prefix2_bazar_id
+				, tables.table_id
+INTO prefix1_shows.schema.farm_all_key_rubrik
+FROM ( SELECT DISTINCT prefix2_date_id, bazar_id, prefix2_table_id FROM [prefix1_shows].[schema].[farm_fr_searching_merged_show_bombies] UNION ALL
+       SELECT DISTINCT prefix2_date_id, bazar_id, prefix2_table_id FROM prefix1_shows.schema.[farm_day_differenced_elixirs_shotouts_dim] ) all_rubrik
+LEFT JOIN prefix1_prefix2.schema.prefix2_date dates ON all_rubrik.prefix2_date_id = dates.prefix2_date_id
+LEFT JOIN prefix1_prefix2.schema.prefix2_bazar bazars ON all_rubrik.bazar_id = bazars.bazar_id
+LEFT JOIN prefix1_prefix2.schema.prefix2_tables tables ON all_rubrik.prefix2_table_id = tables.prefix2_table_id
+
+
+
+
+
+END

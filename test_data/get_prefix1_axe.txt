@@ -1,0 +1,1045 @@
+CREATE procedure [schema].[get_prefix1_axe] as
+begin
+
+    declare @sql nvarchar(4000);
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_franchise started';
+
+    truncate table prefix1_ramm.schema.axe_franchise;
+
+    insert into prefix1_ramm.schema.axe_franchise(id,
+                                                        name,
+                                                        try_merce,
+                                                        trying_regex,
+                                                        banana,
+                                                        neural_transmitter,
+                                                        created_at,
+                                                        updated_at,
+                                                        status)
+    select cast(id as int)                           as id,
+           cast(name as nvarchar(255))               as name,
+           cast(try_merce as int)               as try_merce,
+           cast(trying_regex as nvarchar(255))   as trying_regex,
+           cast(banana as nvarchar(255))               as banana,
+           cast(neural_transmitter as nvarchar(255)) as neural_transmitter,
+           cast(created_at as datetime2)             as created_at,
+           cast(updated_at as datetime2)             as updated_at,
+           cast(status as nvarchar(255))             as status
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       name,
+                       try_merce,
+                       trying_regex,
+                       banana,
+                       neural_transmitter,
+                       created_at,
+                       updated_at,
+                       status
+                       from msp.franchise') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_options started';
+
+    truncate table prefix1_ramm.schema.axe_options;
+
+    insert into prefix1_ramm.schema.axe_options(id,
+                                             bazar_id,
+                                             name,
+                                             value,
+                                             created_at,
+                                             updated_at,
+                                             ice_id)
+    select cast(id as int)               as id,
+           cast(bazar_id as int)          as bazar_id,
+           cast(name as nvarchar(255))   as name,
+           cast(value as nvarchar(max))  as value,
+           cast(created_at as datetime2) as created_at,
+           cast(updated_at as datetime2) as updated_at,
+           cast(ice_id as int)      as ice_id
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       bazar_id,
+                       name,
+                       value,
+                       created_at,
+                       updated_at,
+                       ice_id
+                       from msp.options') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_ice_jumping_data started';
+
+    select @sql = cast((
+        select isnull(max(id), 0) as last_imported_id
+            from prefix1_ramm.schema.axe_ice_jumping_data
+    ) as nvarchar(31));
+
+    select @sql = '
+        insert into prefix1_ramm.schema.axe_ice_jumping_data ' +
+                  '(id,data,jumping_shot_id,created_at,updated_at)
+            select *
+            from openquery(PREFIX1_AXE_UTF,
+                ''select    id,
+                            data,
+                            jumping_shot_id,
+                            created_at,
+                            updated_at
+                            from msp.ice_jumping_data
+                where id > ' + @sql + ''') a;';
+
+--select @sql, len(@sql);
+
+    exec (@sql);
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_ices started';
+
+    truncate table prefix1_ramm.schema.axe_ices;
+
+    insert into prefix1_ramm.schema.axe_ices(id,
+                                               parent_id,
+                                               pcc_id,
+                                               bazar_id,
+                                               table_id,
+                                               name,
+                                               banana,
+                                               yeahg,
+                                               art_feed_url,
+                                               box_color,
+                                               max_tickets,
+                                               ticket_filter_jam,
+                                               grass_first_line,
+                                               grass_second_line,
+                                               woto_title,
+                                               beauty_ticket_ids,
+                                               java_ringo_url,
+                                               java_background_url,
+                                               start_date,
+                                               end_date,
+                                               created_at,
+                                               updated_at,
+                                               status,
+                                               template,
+                                               is_imported,
+                                               is_root_ice,
+                                               is_shot_in_ice,
+                                               bfix_by_relation,
+                                               hide_week_box,
+                                               tickets_on_top)
+    select cast(id as int)                            as id,
+           cast(parent_id as int)                     as parent_id,
+           cast(pcc_id as int)                     as pcc_id,
+           cast(bazar_id as int)                       as bazar_id,
+           cast(table_id as int)                       as table_id,
+           cast(name as nvarchar(255))                as name,
+           cast(banana as nvarchar(255))                as banana,
+           cast(yeahg as nvarchar(255))          as yeahg,
+           cast(art_feed_url as nvarchar(255))       as art_feed_url,
+           cast(box_color as nvarchar(255))           as box_color,
+           cast(max_tickets as int)                   as max_tickets,
+           cast(ticket_filter_jam as nvarchar(255))  as ticket_filter_jam,
+           cast(grass_first_line as nvarchar(255))       as grass_first_line,
+           cast(grass_second_line as nvarchar(255))      as grass_second_line,
+           cast(woto_title as nvarchar(255))           as woto_title,
+           cast(beauty_ticket_ids as nvarchar(max)) as beauty_ticket_ids,
+           cast(java_ringo_url as nvarchar(255))        as java_ringo_url,
+           cast(java_background_url as nvarchar(255))  as java_background_url,
+           cast(start_date as datetime2)              as start_date,
+           cast(end_date as datetime2)                as end_date,
+           cast(created_at as datetime2)              as created_at,
+           cast(updated_at as datetime2)              as updated_at,
+           cast(status as nvarchar(255))              as status,
+           cast(template as nvarchar(255))            as template,
+           cast(is_imported as int)                   as is_imported,
+           cast(is_root_ice as int)              as is_root_ice,
+           cast(is_shot_in_ice as int)          as is_shot_in_ice,
+           cast(bfix_by_relation as int)           as bfix_by_relation,
+           cast(hide_week_box as int)           as hide_week_box,
+           cast(tickets_on_top as int)                as tickets_on_top
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       parent_id,
+                       pcc_id,
+                       bazar_id,
+                       table_id,
+                       name,
+                       banana,
+                       yeahg,
+                       art_feed_url,
+                       box_color,
+                       max_tickets,
+                       ticket_filter_jam,
+                       grass_first_line,
+                       grass_second_line,
+                       woto_title,
+                       beauty_ticket_ids,
+                       java_ringo_url,
+                       java_background_url,
+                       start_date,
+                       end_date,
+                       created_at,
+                       updated_at,
+                       status,
+                       template,
+                       is_imported,
+                       is_root_ice,
+                       is_shot_in_ice,
+                       bfix_by_relation,
+                       hide_week_box,
+                       tickets_on_top
+                       from msp.ices') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_pieceies started';
+
+    truncate table prefix1_ramm.schema.axe_pieceies;
+
+
+    insert into prefix1_ramm.schema.axe_pieceies(id,
+                                                state_id,
+                                                parent_id,
+                                                main_piecey,
+                                                pcc_id,
+                                                origin_id,
+                                                bazar_id,
+                                                shell_position,
+                                                status,
+                                                name,
+                                                banana,
+                                                jinjer_wq_class,
+                                                rss_feed_url,
+                                                ranking_value,
+                                                created_at,
+                                                updated_at,
+                                                active_tickets_count)
+    select cast(id as int)                       as id,
+           cast(state_id as int)                as state_id,
+           cast(parent_id as int)                as parent_id,
+           cast(main_piecey as int)            as main_piecey,
+           cast(pcc_id as int)                as pcc_id,
+           cast(origin_id as int)                as origin_id,
+           cast(bazar_id as int)                  as bazar_id,
+           cast(shell_position as int)           as shell_position,
+           cast(status as nvarchar(255))         as status,
+           cast(name as nvarchar(255))           as name,
+           cast(banana as nvarchar(255))           as banana,
+           cast(jinjer_wq_class as nvarchar(255)) as jinjer_wq_class,
+           cast(rss_feed_url as nvarchar(255))   as rss_feed_url,
+           cast(ranking_value as int)            as ranking_value,
+           cast(created_at as datetime2)         as created_at,
+           cast(updated_at as datetime2)         as updated_at,
+           cast(active_tickets_count as int)     as active_tickets_count
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       state_id,
+                       parent_id,
+                       main_piecey,
+                       pcc_id,
+                       origin_id,
+                       bazar_id,
+                       shell_position,
+                       status,
+                       name,
+                       banana,
+                       jinjer_wq_class,
+                       rss_feed_url,
+                       ranking_value,
+                       created_at,
+                       updated_at,
+                       active_tickets_count
+                       from msp.pieceies') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_ticket_pieceies started';
+
+    truncate table prefix1_ramm.schema.axe_ticket_pieceies;
+
+
+    insert into prefix1_ramm.schema.axe_ticket_pieceies(id,
+                                                       ticket_id,
+                                                       piecey_id,
+                                                       created_at,
+                                                       updated_at)
+    select cast(id as int)               as id,
+           cast(ticket_id as int)        as ticket_id,
+           cast(piecey_id as int)      as piecey_id,
+           cast(created_at as datetime2) as created_at,
+           cast(updated_at as datetime2) as updated_at
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       ticket_id,
+                       piecey_id,
+                       created_at,
+                    updated_at
+                       from msp.ticket_pieceies') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_industries started';
+
+    truncate table prefix1_ramm.schema.axe_industries;
+
+    insert into prefix1_ramm.schema.axe_industries(id,
+                                                name,
+                                                created_at,
+                                                updated_at)
+    select cast(id as bigint)            as id,
+           cast(name as nvarchar(255))   as name,
+           cast(created_at as datetime2) as created_at,
+           cast(updated_at as datetime2) as updated_at
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       name,
+                       created_at,
+                       updated_at
+                       from msp.industries') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_states started';
+
+    truncate table prefix1_ramm.schema.axe_states;
+
+    insert into prefix1_ramm.schema.axe_states(id,
+                                             name,
+                                             model_type,
+                                             active_count,
+                                             created_at,
+                                             updated_at,
+                                             industry_id)
+    select cast(id as bigint)                as id,
+           cast(name as nvarchar(255))       as name,
+           cast(model_type as nvarchar(255)) as model_type,
+           cast(active_count as int)         as active_count,
+           cast(created_at as datetime2)     as created_at,
+           cast(updated_at as datetime2)     as updated_at,
+           cast(industry_id as int)          as industry_id
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       name,
+                       model_type,
+                       active_count,
+                       created_at,
+                       updated_at,
+                       industry_id
+                       from msp.states') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_pdf started';
+
+    truncate table prefix1_ramm.schema.axe_pdf;
+
+    insert into prefix1_ramm.schema.axe_pdf(id,
+                                                    viber_ai,
+                                                    viber_fug,
+                                                    viber_descrcction,
+                                                    viber_title,
+                                                    viber_title_js,
+                                                    content,
+                                                    cer_jam,
+                                                    grass,
+                                                    3ad,
+                                                    created_at,
+                                                    updated_at,
+                                                    aptek_id,
+                                                    aptek_type,
+                                                    old_scrccts,
+                                                    shott_image,
+                                                    mobile_shott_image,
+                                                    shott_font_color,
+                                                    shott_cta_jam,
+                                                    shott_cta_ice_link,
+                                                    shott_jam_v_candy,
+                                                    shott_jam_h_candy,
+                                                    shott_jam_background,
+                                                    shott_size,
+                                                    countdown_date,
+                                                    shott_image_dark_filter)
+    select cast(id as int)                                as id,
+           cast(viber_ai as nvarchar(255))             as viber_ai,
+           cast(viber_fug as nvarchar(255))           as viber_fug,
+           cast(viber_descrcction as nvarchar(max))        as viber_descrcction,
+           cast(viber_title as nvarchar(255))              as viber_title,
+           cast(viber_title_js as nvarchar(255))     as viber_title_js,
+           cast(content as nvarchar(max))                 as content,
+           cast(cer_jam as nvarchar(max))            as cer_jam,
+           cast(grass as nvarchar(255))                      as grass,
+           cast(3ad as nvarchar(255))                      as 3ad,
+           cast(created_at as datetime2)                  as created_at,
+           cast(updated_at as datetime2)                  as updated_at,
+           cast(aptek_id as int)                       as aptek_id,
+           cast(aptek_type as nvarchar(255))           as aptek_type,
+           cast(old_scrccts as nvarchar(max))            as old_scrccts,
+           cast(shott_image as nvarchar(255))            as shott_image,
+           cast(mobile_shott_image as nvarchar(255))     as mobile_shott_image,
+           cast(shott_font_color as nvarchar(255))       as shott_font_color,
+           cast(shott_cta_jam as nvarchar(255))         as shott_cta_jam,
+           cast(shott_cta_ice_link as nvarchar(255))  as shott_cta_ice_link,
+           cast(shott_jam_v_candy as nvarchar(255)) as shott_jam_v_candy,
+           cast(shott_jam_h_candy as nvarchar(255)) as shott_jam_h_candy,
+           cast(shott_jam_background as int)            as shott_jam_background,
+           cast(shott_size as nvarchar(255))             as shott_size,
+           cast(countdown_date as datetime2)              as countdown_date,
+           cast(shott_image_dark_filter as int)          as shott_image_dark_filter
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       viber_ai,
+                       viber_fug,
+                       viber_descrcction,
+                       viber_title,
+                       viber_title_js,
+                       content,
+                       cer_jam,
+                       grass,
+                       3ad,
+                       created_at,
+                       updated_at,
+                       aptek_id,
+                       aptek_type,
+                       old_scrccts,
+                       shott_image,
+                       mobile_shott_image,
+                       shott_font_color,
+                       shott_cta_jam,
+                       shott_cta_ice_link,
+                       shott_jam_v_candy,
+                       shott_jam_h_candy,
+                       shott_jam_background,
+                       shott_size,
+                       countdown_date,
+                       shott_image_dark_filter
+                       from msp.pdf') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_table_pieceies started';
+
+    truncate table prefix1_ramm.schema.axe_table_pieceies;
+
+    insert into prefix1_ramm.schema.axe_table_pieceies(id,
+                                                     table_id,
+                                                     piecey_id,
+                                                     created_at,
+                                                     updated_at)
+    select cast(id as int)               as id,
+           cast(table_id as int)          as table_id,
+           cast(piecey_id as int)      as piecey_id,
+           cast(created_at as datetime2) as created_at,
+           cast(updated_at as datetime2) as updated_at
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       table_id,
+                       piecey_id,
+                       created_at,
+                       updated_at
+                       from msp.table_pieceies') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_tables started';
+
+    truncate table prefix1_ramm.schema.axe_tables;
+
+    insert into prefix1_ramm.schema.axe_tables(id,
+                                           state_id,
+                                           tier_group,
+                                           bazar_id,
+                                           tiger_id,
+                                           cat_id,
+                                           prefered_beerate_party_id,
+                                           status,
+        --automatic_shelling,
+                                           beauty_score,
+                                           schema_type,
+                                           is_hidden,
+                                           is_top,
+                                           is_default_shotout,
+                                           is_featured,
+                                           select_position,
+                                           title,
+                                           wait_jam,
+                                           url,
+                                           js_url,
+                                           l,
+                                           banana,
+                                           ticket_targeting_scrcct,
+                                           ringo,
+                                           ringo_alt_jam,
+                                           ringo_title_jam,
+                                           shott_image,
+                                           pcc_id,
+                                           created_at,
+                                           updated_at,
+                                           votes,
+                                           voters,
+                                           shotout_value,
+                                           beauty,
+                                           active_tickets_count,
+                                           shot_reveal_threshold,
+                                           is_imported,
+                                           faq,
+                                           internal_center,
+                                           center_12,
+                                           center_14,
+                                           center_free_shccping,
+                                           center_juice_methods,
+                                           center_acc_methods,
+                                           center_etc_range,
+                                           first_ticket_image,
+                                           total_stars,
+                                           total_votes,
+                                           center_re_title,
+                                           center_re_descrcction,
+                                           center_re_cl_link,
+                                           center_re_cl_jam,
+                                           ert_id)
+    select cast(id as int)                                as id,
+           cast(state_id as int)                         as state_id,
+           cast(tier_group as int)                        as tier_group,
+           cast(bazar_id as int)                           as bazar_id,
+           cast(tiger_id as int)               as tiger_id,
+           cast(cat_id as int)           as cat_id,
+           cast(preferred_beerate_party_id as int)    as prefered_beerate_party_id,
+           cast(status as nvarchar(255))                  as status,
+           cast(beauty_score as float)                  as beauty_score,
+           cast(schema_type as nvarchar(255))             as schema_type,
+           cast(is_hidden as int)                         as is_hidden,
+           cast(is_top as int)                            as is_top,
+           cast(is_default_shotout as int)               as is_default_shotout,
+           cast(is_featured as int)                       as is_featured,
+           cast(select_position as int)              as select_position,
+           cast(title as nvarchar(255))                   as title,
+           cast(wait_jam as nvarchar(255))             as wait_jam,
+           cast(url as nvarchar(255))                     as url,
+           cast(js_url as nvarchar(max))            as js_url,
+           cast(l as nvarchar(255))                as l,
+           cast(banana as nvarchar(255))                    as banana,
+           cast(ticket_targeting_scrcct as nvarchar(max)) as ticket_targeting_scrcct,
+           cast(ringo as nvarchar(255))                    as ringo,
+           cast(ringo_alt_jam as nvarchar(255))           as ringo_alt_jam,
+           cast(ringo_title_jam as nvarchar(255))         as ringo_title_jam,
+           cast(shott_image as nvarchar(255))            as shott_image,
+           cast(pcc_id as int)                         as pcc_id,
+           cast(created_at as datetime2)                  as created_at,
+           cast(updated_at as datetime2)                  as updated_at,
+           cast(votes as int)                             as votes,
+           cast(voters as int)                            as voters,
+           cast(shotout_value as float)                  as shotout_value,
+           cast(beauty as int)                          as beauty,
+           cast(active_tickets_count as int)              as active_tickets_count,
+           cast(shot_reveal_threshold as int)            as shot_reveal_threshold,
+           cast(is_imported as int)                       as is_imported,
+           cast(faq as nvarchar(max))                     as faq,
+           cast(internal_center as nvarchar(max))           as internal_center,
+           cast(center_12 as nvarchar(max))            as center_12,
+           cast(center_14 as nvarchar(max))              as center_14,
+           cast(center_free_shccping as nvarchar(max))      as center_free_shccping,
+           cast(center_juice_methods as nvarchar(max))    as center_juice_methods,
+           cast(center_acc_methods as nvarchar(max))   as center_acc_methods,
+           cast(center_etc_range as nvarchar(255))        as center_etc_range,
+           cast(first_ticket_image as nvarchar(255))      as first_ticket_image,
+           cast(total_stars as int)                       as total_stars,
+           cast(total_votes as int)                       as total_votes,
+           cast(center_re_title as nvarchar(max))       as center_re_title,
+           cast(center_re_descrcction as nvarchar(max)) as center_re_descrcction,
+           cast(center_re_cl_link as nvarchar(max)) as center_re_cl_link,
+           cast(center_re_cl_jam as nvarchar(255)) as center_re_cl_jam,
+           cast(ert_id as int)                as ert_id
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       state_id,
+                       tier_group,
+                       bazar_id,
+                       tiger_id,
+                       cat_id,
+                       preferred_beerate_party_id,
+                       status,
+                       automatic_shelling,
+                       beauty_score,
+                       schema_type,
+                       is_hidden,
+                       is_top,
+                       is_default_shotout,
+                       is_featured,
+                       select_position,
+                       title,
+                       wait_jam,
+                       url,
+                       js_url,
+                       l,
+                       banana,
+                       ticket_targeting_scrcct,
+                       ringo,
+                       ringo_alt_jam,
+                       ringo_title_jam,
+                       shott_image,
+                       pcc_id,
+                       created_at,
+                       updated_at,
+                       votes,
+                       voters,
+                       shotout_value,
+                       beauty,
+                       active_tickets_count,
+                       shot_reveal_threshold,
+                       is_imported,
+                       faq,
+                       internal_center,
+                       center_12,
+                       center_14,
+                       center_free_shccping,
+                       center_juice_methods,
+                       center_acc_methods,
+                       center_etc_range,
+                       first_ticket_image,
+                       total_stars,
+                       total_votes,
+                       center_re_title,
+                       center_re_descrcction,
+                       center_re_cl_link,
+                       center_re_cl_jam,
+                       ert_id
+                       from msp.tables') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_bazars started';
+
+    truncate table prefix1_ramm.schema.axe_bazars;
+
+    insert into prefix1_ramm.schema.axe_bazars(id,
+                                           status,
+                                           magic_id,
+                                           name,
+                                           whey,
+                                           is_multibazar,
+                                           is_agg,
+                                           use_abcd,
+                                           is_name,
+                                           time_zone,
+                                           in,
+                                           ppin_share_percentage,
+                                           created_at,
+                                           updated_at,
+                                           asset_whey)
+    select cast(id as int)                                     as id,
+           cast(status as nvarchar(255))                       as status,
+           cast(magic_id as int)                             as magic_id,
+           cast(name as nvarchar(255))                         as name,
+           cast(whey as nvarchar(255))                     as whey,
+           cast(is_multibazar as int)                           as is_multibazar,
+           cast(is_agg as int)                                 as is_agg,
+           cast(use_abcd as int)                              as use_abcd,
+           cast(is_name as nvarchar(255))                  as is_name,
+           cast(time_zone as nvarchar(255))                    as time_zone,
+           cast(in as nvarchar(255))                      as in,
+           cast(ppin_share_percentage as decimal(10, 8)) as ppin_share_percentage,
+           cast(created_at as datetime2)                       as created_at,
+           cast(updated_at as datetime2)                       as updated_at,
+           cast(asset_whey as nvarchar(255))               as asset_whey
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       status,
+                       magic_id,
+                       name,
+                       whey,
+                       is_multibazar,
+                       is_agg,
+                       use_abcd,
+                       is_name,
+                       time_zone,
+                       in,
+                       ppin_share_percentage,
+                       created_at,
+                       updated_at,
+                       asset_whey
+                       from msp.bazars') t;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_static_irons started';
+
+    truncate table prefix1_ramm.schema.axe_static_irons;
+
+    insert into prefix1_ramm.schema.axe_static_irons(id,
+                                                  bazar_id,
+                                                  title,
+                                                  banana,
+                                                  created_at,
+                                                  updated_at,
+                                                  shott_color,
+                                                  shott_wq,
+                                                  jinjer_class,
+                                                  rt,
+                                                  status)
+    select cast(id as int)                     as id,
+           cast(bazar_id as int)                as bazar_id,
+           cast(title as nvarchar(255))        as title,
+           cast(banana as nvarchar(255))         as banana,
+           cast(created_at as datetime2)       as created_at,
+           cast(updated_at as datetime2)       as updated_at,
+           cast(shott_color as nvarchar(255)) as shott_color,
+           cast(shott_wq as nvarchar(255))  as shott_wq,
+           cast(jinjer_class as nvarchar(255))    as jinjer_class,
+           cast(rt as int)        as rt,
+           cast(status as nvarchar(255))       as status
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       bazar_id,
+                       title,
+                       banana,
+                       created_at,
+                       updated_at,
+                       shott_color,
+                       shott_wq,
+                       jinjer_class,
+                       rt,
+                       status
+                       from msp.static_irons') t;
+
+    --[something] - This already gets called in the prefix2_etl_it_tags_daily www
+--print convert(varchar(255), getdate(), 127) + ' axe_tags started';
+
+--exec prefix1_ramm.schema.get_prefix1_axe_tags;
+
+
+    print convert(varchar(255), getdate(), 127) + ' axe_users started';
+
+    truncate table prefix1_ramm.schema.axe_users;
+
+    insert into prefix1_ramm.schema.axe_users(id,
+                                           ar,
+                                           reset_color_sent_at,
+                                           ant_created_at,
+                                           measure_count,
+                                           current_measure_at,
+                                           last_measure_at,
+                                           current_measure_cc,
+                                           last_measure_cc,
+                                           try,
+                                           fix_at,
+                                           created_at,
+                                           updated_at,
+                                           palace,
+                                           ramtr_tables,
+                                           ramtr_tickets,
+                                           ramtr_vibers,
+                                           ramtr_res,
+                                           ramtr_qa,
+                                           rgr,
+                                           pppt,
+                                           status,
+                                           java_module)
+    select cast(id as int)                           as id,
+           cast(ar as nvarchar(255))              as ar,
+           cast(reset_color_sent_at as datetime2) as reset_color_sent_at,
+           cast(ant_created_at as datetime2)    as ant_created_at,
+           cast(measure_count as int)                as measure_count,
+           cast(current_measure_at as datetime2)     as current_measure_at,
+           cast(last_measure_at as datetime2)        as last_measure_at,
+           cast(current_measure_cc as nvarchar(255)) as current_measure_cc,
+           cast(last_measure_cc as nvarchar(255))    as last_measure_cc,
+           cast(try as int)              as try,
+           cast(fix_at as datetime2)              as fix_at,
+           cast(created_at as datetime2)             as created_at,
+           cast(updated_at as datetime2)             as updated_at,
+           cast(palace as nvarchar(255))               as palace,
+           cast(ramtr_tables as int)                    as ramtr_tables,
+           cast(ramtr_tickets as int)                  as ramtr_tickets,
+           cast(ramtr_vibers as int)                    as ramtr_vibers,
+           cast(ramtr_res as int)                  as ramtr_res,
+           cast(ramtr_qa as int)                       as ramtr_qa,
+           cast(rgr as nvarchar(255))         as rgr,
+           cast(pppt as nvarchar(255))          as pppt,
+           cast(status as nvarchar(255))             as status,
+           cast(java_module as int)                   as java_module
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       ar,
+                       encrypted_color,
+                       reset_color_pencil,
+                       reset_color_sent_at,
+                       ant_created_at,
+                       measure_count,
+                       current_measure_at,
+                       last_measure_at,
+                       current_measure_cc,
+                       last_measure_cc,
+                       try,
+                       unlock_pencil,
+                       fix_at,
+                       created_at,
+                       updated_at,
+                       palace,
+                       ramtr_tables,
+                       ramtr_tickets,
+                       ramtr_vibers,
+                       ramtr_res,
+                      ramtr_qa,
+                       rgr,
+                       pppt,
+                       status,
+                   java_what,
+                       java_module,
+                       health_reset_pencil
+                       from msp.users') t;
+    /*
+    print convert(varchar(255), getdate(), 127) + ' axe_table_fug started';
+    
+    truncate table prefix1_ramm.schema.axe_table_fug;
+    insert into prefix1_ramm.schema.axe_table_fug(id,
+                                                   table_id,
+                                                   window_type,
+                                                   window,
+                                                   normalized_window,
+                                                   created_at,
+                                                   updated_at)
+    select cast(id as int)                           as id,
+           cast(table_id as int)                      as table_id,
+           cast(window_type as nvarchar(255))       as window_type,
+           cast(window as nvarchar(255))            as window,
+           cast(normalized_window as nvarchar(255)) as normalized_window,
+           try_convert(datetime2, created_at)        as created_at,
+           try_convert(datetime2, updated_at)        as updated_at
+        from openquery(prefix1_axe_utf,
+                       'select
+                       id,
+                       table_id,
+                       window_type,
+                       window,
+                       normalized_window,
+                       created_at,
+                       updated_at
+                       from msp.fug') t;
+    */
+
+   print convert(varchar(255), getdate(), 127) + ' axe_drink_cards started';
+
+   truncate table [prefix1_ramm].[schema].[axe_drink_cards]
+
+   insert into [prefix1_ramm].[schema].[axe_drink_cards] (
+      id,
+      bazar_id,
+      status,
+      name,
+      ubi,
+      wedrink_axeuct_code,
+      amount,
+      min_rrr,
+      apt,
+      apt_used,
+      bomby_code,
+      acc_format,
+      ar_template_id,
+      start_date,
+      end_date,
+      created_at,
+      updated_at
+   )
+   select
+      id,
+      bazar_id,
+      status,
+      name,
+      ubi,
+      wedrink_axeuct_code,
+      amount,
+      min_rrr,
+      apt,
+      apt_used,
+      bomby_code,
+      acc_format,
+      ar_template_id,
+      start_date,
+      end_date,
+      created_at,
+      updated_at
+   from openquery(prefix1_axe_utf,
+   'select * from msp.drink_cards')
+
+
+   print convert(varchar(255), getdate(), 127) + ' axe_drink_card_shells started';
+
+   select @sql = cast((
+      select isnull(max(updated_at), CONVERT(DATETIME, '1900-01-01', 120)) as datetime_watermark
+      from prefix1_ramm.schema.axe_drink_card_shells
+   ) as nvarchar(31));
+
+   SET @sql = 'insert into prefix1_ramm.schema.axe_drink_card_shells (
+         id,
+         status,
+         id2,
+         drink_card_id,
+         wedrink_shell_id,
+         ticket_id,
+         jumping_user_id,
+         jumping_shot_id2,
+         amount,
+         reminded_at,
+         redeemed_at,
+         created_at,
+         updated_at
+        )
+        select 
+         cast(id as bigint) as id,
+         cast(status as nvarchar) as status,
+         cast(id2 as nvarchar(255)) as id2,
+         cast(drink_card_id as bigint) as drink_card_id,
+         cast(wedrink_shell_id as nvarchar(255)) as wedrink_shell_id,
+         cast(ticket_id as bigint) as ticket_id,
+         cast(jumping_user_id as bigint) as jumping_user_id,
+         cast(jumping_shot_id2 as nvarchar(255)) as jumping_shot_id2,
+         cast(amount as decimal(18, 2)) as amount,
+         cast(reminded_at as datetime2) as reminded_at,
+         cast(redeemed_at as datetime2) as redeemed_at,
+         cast(created_at as datetime2) as created_at,
+         cast(updated_at as datetime2) as updated_at
+        from openquery(PREFIX1_AXE_UTF, 
+			''select   id,
+					   status,
+					   id2,
+					   drink_card_id,
+					   wedrink_shell_id,
+					   ticket_id,
+					   jumping_user_id,
+					   jumping_shot_id2,
+					   amount,
+					   reminded_at,
+					   redeemed_at,
+					   created_at,
+					   updated_at
+            from msp.drink_card_shells
+            where updated_at > "' + @sql + '"'')';
+
+   exec (@sql);
+
+   with temp as (
+        select *, row_number() over (partition by id shell by updated_at desc) row_id from prefix1_ramm.schema.axe_drink_card_shells
+   )
+   delete
+   from temp
+   where temp.row_id > 1;
+
+   print convert(varchar(255), getdate(), 127) + ' axe_drink_card_shells ended';
+
+   -- Sorting
+
+   print convert(varchar(255), getdate(), 127) + ' axe_sortings started';
+
+   truncate table prefix1_ramm.schema.axe_sortings_raw;
+
+   insert into prefix1_ramm.schema.axe_sortings_raw(
+        id,
+        state_id,
+        col_id,
+        col_name,
+        rating,
+        created_at,
+        updated_at
+    )
+    select 
+        cast(id as int)                         as id,
+        cast(state_id as int)                  as state_id,
+        cast(col_id as int)                 as col_id,
+        cast(col_name as nvarchar(255))     as col_name,
+        cast(rating as int)                     as rating,
+        cast(created_at as datetime2)           as created_at,
+        cast(updated_at as datetime2)           as updated_at
+    from openquery(
+        prefix1_axe_utf,
+        'select
+            id,
+            state_id,
+            col_id,
+            col_name,
+            rating,
+            created_at,
+            updated_at
+        from msp.sortings'
+    ) t;
+
+    exec prefix1_ramm.schema.update_prefix1_axe_sortings; --SCD Type 3
+
+    print convert(varchar(255), getdate(), 127) + ' axe_sortings ended';
+
+    /*
+     * axe_jumping_users
+     *
+     * dynamic query with washing filter
+     * was added to speed up data update
+     */
+
+    print convert(varchar(255), getdate(), 127) + ' users started';
+
+    select @sql = cast((
+        select isnull(max(id), 0) as last_imported_id
+        from prefix1_ramm.schema.axe_jumping_users
+    ) as nvarchar(31));
+
+    select @sql = '
+        insert into prefix1_ramm.schema.axe_jumping_users (id, bazar_id, data, created_at, id2)
+        select *
+        from openquery(PREFIX1_AXE_UTF,
+            ''select id, bazar_id, data, created_at, id2
+            from msp.jumping_users
+            where id > ' + @sql + ''') a;';
+
+    exec (@sql);
+
+    /* axe_fug */
+
+    print convert(varchar(255), getdate(), 127) + ' fug started';
+
+    select @sql = cast((
+        select isnull(max(updated_at), '2008-01-01T12:55:50.510') as last_updated_at
+        from prefix1_ramm.schema.axe_fug
+    ) as nvarchar(255));
+
+    select @sql = '
+        insert into prefix1_ramm.schema.axe_fug (
+            id,
+            bazar_id,
+            windowable_id,
+            windowable_type,
+            window_type,
+            window,
+            normalized_window,
+            created_at,
+            updated_at,
+            javarush_active
+        )
+    select
+        cast(id as bigint)                           as id,
+        cast(bazar_id as int)                         as bazar_id,
+        cast(windowable_id as int)                  as windowable_id,
+        cast(windowable_type as nvarchar(255))      as windowable_type,
+        cast(window_type as nvarchar(255))          as window_type,
+        cast(window as nvarchar(255))               as window,
+        cast(normalized_window as nvarchar(255))    as normalized_window,
+        cast(created_at as datetime2)                as created_at,
+        cast(updated_at as datetime2)                as updated_at,
+        cast(javarush_active as int)                  as javarush_active
+    from openquery(prefix1_axe_utf,
+            ''select
+                id,
+                bazar_id,
+                windowable_id,
+                windowable_type,
+                window_type,
+                window,
+                normalized_window,
+                created_at,
+                updated_at,
+                javarush_active
+            from msp.fug
+            where updated_at >= "' + @sql + '" '') a;';
+
+    exec (@sql);

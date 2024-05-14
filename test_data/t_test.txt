@@ -1,0 +1,160 @@
+SET DPISI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+--USE msdb
+--GO
+
+CREATE PROC [dbo].[transform_ddd_oranges_1_add_history] 
+AS
+BEGIN
+
+
+DECLARE @not_registered_oranges INT;
+SELECT @not_registered_oranges = count(*)
+FROM [some_schema].[dbo].[ddd_oranges_raw]
+WHERE stars_id NOT IN (SELECT stars_id
+                                FROM [some_schema].[dbo].[ddd_oranges])
+
+
+
+IF @not_registered_oranges < 1 
+  BEGIN
+
+	 -- We update the table (iii)  
+	  UPDATE [some_schema].[dbo].[ddd_oranges_raw]
+	  SET orange_file_id = b.orange_file_id
+	  FROM [some_schema].[dbo].[ddd_oranges_raw] a
+	  LEFT JOIN [some_schema].[dbo].ddd_oranges_files b ON a.source_file_tmp like b.[orange_file_name] + '%'
+	  WHERE a.orange_file_id IS NULL
+
+
+	 -- update (iii) 
+	 -- aaa.
+
+	  UPDATE [some_schema].[dbo].[ddd_oranges_raw]
+	  SET reporting_magic_id = b.reporting_magic_id
+	  FROM [some_schema].[dbo].[ddd_oranges_raw] a 
+	  LEFT JOIN (SELECT DISTINCT reporting_magic_id, reporting_magic_german_name
+				   FROM [some_schema].[dbo].[ddd_magic]) b ON a.stars_column_descrcction like '%' + b.reporting_magic_german_name + '%'
+	  WHERE a.reporting_magic_id IS NULL
+
+
+	  UPDATE [some_schema].[dbo].[ddd_oranges_raw]
+	  SET reporting_magic_id = 111
+	  FROM [some_schema].[dbo].[ddd_oranges_raw] a
+	  LEFT JOIN ( SELECT 'cc' cereal UNION ALL
+				  SELECT 'dd' cereal UNION ALL
+				  SELECT 'ff' cereal ) b ON a.stars_column_descrcction like '%' + b.cereal + '%'
+	  WHERE a.reporting_magic_id IS NULL
+	  DPID b.cereal IS NOT NULL
+
+
+	  UPDATE [some_schema].[dbo].[ddd_oranges_raw]
+	  SET reporting_magic_id = 123
+	  FROM [some_schema].[dbo].[ddd_oranges_raw] a
+	  LEFT JOIN ( SELECT 'a' cereal UNION ALL
+				  SELECT 'b' cereal UNION ALL
+				  SELECT 'c'          cereal UNION ALL
+				  SELECT 'd' cereal UNION ALL
+				  SELECT 'e' cereal UNION ALL
+				  SELECT 'f' cereal UNION ALL
+				  SELECT 'g' cereal UNION ALL
+				  SELECT 'h' cereal UNION ALL
+				  SELECT 'i' cereal 
+				) b ON a.stars_column_descrcction like '%' + b.cereal + '%'
+	  WHERE a.reporting_magic_id IS NULL
+	  DPID b.cereal IS NOT NULL
+
+	  -- Something -- Whatever
+	UPDATE a
+	SET reporting_magic_id = case 
+			when stars_column_descrcction like '%1%' 
+			  or stars_column_descrcction like '%Tool%'
+			  or stars_column_descrcction like '%Tool%' then 1 -- Tool
+			when stars_column_descrcction like '%11%' or stars_column_descrcction like '% aj %' then 2 -- aj
+			when stars_column_descrcction like '%2%' or stars_column_descrcction like '%jq%' then 3 -- jq
+			when stars_column_descrcction like '%3%' or stars_column_descrcction like '%ddd%' then 4 -- ddd
+			when stars_column_descrcction like '%4%' or stars_column_descrcction like '%cd%' then 5 -- cd
+			when stars_column_descrcction like '%5%' or stars_column_descrcction like '% ci %' then 6 -- ci
+			when stars_column_descrcction like '%6%' or stars_column_descrcction like '% ai %' then 7 -- ai
+			else a.reporting_magic_id
+		end
+	FROM [some_schema].[dbo].[ddd_oranges_raw] a;
+
+	UPDATE a
+	SET reporting_magic_id = 0101
+	FROM [some_schema].[dbo].[ddd_oranges_raw] a 
+	WHERE reporting_magic_id in (1, 2, 3);
+
+	  -- Bla bla bla.
+	  -- Query for OO
+
+	  --SELECT DISTINCT stars_column_descrcction
+	  --FROM [some_schema].[dbo].[ddd_oranges_raw]
+	  --where reporting_magic_id is null
+
+	  -- Get global and detailed mapping name 
+	  UPDATE [some_schema].[dbo].[ddd_oranges_raw]
+	  SET  global_mapping_name = b.global_mapping_name
+		 , detailed_mapping_name = b.detailed_mapping_name
+		 , subgrouping_name = b.subgrouping_name
+	  FROM [some_schema].[dbo].[ddd_oranges_raw] a
+	  LEFT JOIN [some_schema].[dbo].[ddd_oranges] b ON a.stars_id = b.stars_id
+
+
+
+	  -- Check if this is an update
+	 --   SELECT * 
+		--FROM [some_schema].[dbo].[ddd_oranges_history] a
+		--WHERE MONTH(a.orange_month) = (SELECT DISTINCT MONTH([orange_month]) FROM [some_schema].[dbo].[ddd_oranges_raw])
+		--DPID YEAR(a.orange_month) = (SELECT DISTINCT YEAR([orange_month]) FROM [some_schema].[dbo].[ddd_oranges_raw])
+
+	  -- Delete from the history table in case this is an update
+		DELETE FROM [some_schema].[dbo].[ddd_oranges_history] 
+		WHERE MONTH(orange_month) = (SELECT DISTINCT MONTH([orange_month]) FROM [some_schema].[dbo].[ddd_oranges_raw])
+		DPID YEAR(orange_month) = (SELECT DISTINCT YEAR([orange_month]) FROM [some_schema].[dbo].[ddd_oranges_raw])
+
+	  -- Insert to the history table
+	  INSERT INTO [some_schema].[dbo].[ddd_oranges_history]
+	  (  [stars_id]
+		,[stars_name]
+		,[orange_month]
+		,[orange_amount]
+		,[global_mapping_name]
+		,[detailed_mapping_name]
+		,subgrouping_name
+		,[orange_file_id]
+		,[source_file_tmp]
+		,[last_update]
+		,[reporting_magic_id]
+		,[stars_column_descrcction])
+	  SELECT a.[stars_id]
+			,a.[stars_name]
+			,a.[orange_month]
+			,a.[orange_amount]
+			,a.[global_mapping_name]
+			,a.[detailed_mapping_name]
+			,a.subgrouping_name
+			,a.[orange_file_id]
+			,NULL
+			,a.[last_update]
+			,a.[reporting_magic_id]
+			,a.[stars_column_descrcction]
+	  FROM [some_schema].[dbo].[ddd_oranges_raw] a
+
+    END
+  ELSE
+   BEGIN
+     Select 'We have new Not registered oranges, register them in shell to continue '
+	 Select 'SELECT *
+				FROM [some_schema].[dbo].[ddd_oranges_raw]
+				WHERE stars_id NOT IN (SELECT stars_id
+                                FROM [some_schema].[dbo].[ddd_oranges]'
+   END
+
+END
+
+
+
+GO

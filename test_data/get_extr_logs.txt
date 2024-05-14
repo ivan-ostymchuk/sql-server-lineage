@@ -1,0 +1,23 @@
+CREATE procedure [schema].[get_extr_logs]
+as
+begin
+
+truncate table prefix1_shows.schema.extr_logs;
+
+insert into prefix1_shows.schema.extr_logs
+
+select
+CAST( error_log as NVARCHAR(MAX) ) as error_log,
+fr_extr,
+getdate()  as created_at
+from prefix1_ramm.schema.extr_logs_daily_errors_py_raw
+union all
+select
+CAST( error_log as NVARCHAR(MAX) ) as error_log,
+source,
+created_at
+from prefix1_ramm.schema.extr_logs_webetl_py_raw;
+
+
+end
+

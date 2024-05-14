@@ -1,0 +1,93 @@
+
+CREATE procedure [schema].[get_all_ttt_exchanges]
+as
+begin
+
+    delete from [schema].[ttt_exchanges_viber_show];
+
+    insert into [schema].[ttt_exchanges_viber_show] (
+        [fr_id],
+        [indeed],
+        [fr_name],
+        [exchangedate],
+        [ice_start],
+        [ice_end],
+        [standard_ppin],
+        [source_ppin],
+        [bomby],
+        [magic_id],
+        [status],
+        [table_name],
+        [state_table_id],
+        [owner],
+        [sensitive_code],
+        [brzo_show_start],
+        [brzo_show_end]
+    )
+    select 
+        [fr_id],
+        [indeed],
+        [fr_name],
+        [exchangedate],
+        [ice_start],
+        [ice_end],
+        [standard_ppin],
+        [source_sayison] as [source_ppin],
+        [bomby],
+        [magic_id],
+        [status],
+        [table_name],
+        [state_table_id],
+        [owner],
+        case
+            when [offer] like '%Sensitive code%'
+                then 'Yes'
+            else 'No' end as sensitive_code,
+        [brzo_show_start],
+        [brzo_show_end]
+        from [prefix1_prefix2].[schema].[prefix2_fr_ttt];
+
+
+    delete from [schema].[ttt_exchanges_dividends_show];
+
+    insert into [schema].[ttt_exchanges_dividends_show]
+    select concat(fr_id, '_0') as id,
+           0                   as dividend_number,
+           indeed,
+           standard_ppin,
+           source_sayison   as source_ppin,
+           bomby,
+           magic_id,
+           offer,
+           bazar_id,
+           null                as car_sharing,
+           coalesce(
+            urk_collab_1,
+            urk_collab_2,
+            urk_collab_3,
+            urk_collab_4,
+            bazar_id_1
+           )                   as urk_bazar_id,
+           urk_increase_percentage,
+           urk_start_date,
+           urk_end_date
+        from [prefix1_prefix2].[schema].[prefix2_fr_ttt]
+        where fr_id not in (select fr_id from [prefix1_prefix2].[schema].[prefix2_ttt_dividendted_exchanges]);
+
+    insert into [schema].[ttt_exchanges_dividends_show]
+    select concat(fr_id, '_', dividend_shell) as id,
+           dividend_shell                     as dividend_number,
+           indeed,
+           standard_ppin,
+           source_ppin,
+           bomby,
+           magic_id,
+           offer,
+           bazar_id,
+           car_sharing,
+           urk_bazar_id,
+           urk_increase_percentage,
+           urk_start_date,
+           urk_end_date
+    from [prefix1_prefix2].[schema].[prefix2_ttt_dividendted_exchanges];
+end

@@ -1,0 +1,64 @@
+on:
+  workflow_call:
+
+jobs:
+  unit_and_integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sudo Update And Install
+        run: |
+          sudo apt-get update && sudo apt-get install -y bzip2 curl gcc
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22.x'
+
+      - name: Setup Go Env
+        run: |
+          CGO_ENABLED=1 && GOOS=linux && GOARCH=arm64 && CC=aarch64-linux-gnu-gcc
+
+      - name: Install Go dependencies
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest &&
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Go Unit Tests
+        working-directory: ./sql_server_lineage
+        run: |
+          go test .
+
+      - name: Go Static Check
+        working-directory: ./sql_server_lineage
+        run: |
+          staticcheck -tests=false .
+
+      - name: Go Vulnerability Check
+        working-directory: ./sql_server_lineage
+        run: |
+          govulncheck .
+
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Build
+        run: |
+          pip install build && pip install --upgrade setuptools
+
+      - name: Build sql-server-lineage
+        working-directory: ./sql_server_lineage_python/src
+        run: |
+          python3 -m build --wheel
+
+      - name: Install sql-server-lineage Wheel
+        working-directory: ./sql_server_lineage_python/src
+        run: |
+          pip install "$(find dist -name *.whl)"
+
+      - name: Run Python Tests
+        run: |
+          python3 sql_server_lineage_python/tests/test_sql_server_lineage.py

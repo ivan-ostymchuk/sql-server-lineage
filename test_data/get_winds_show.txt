@@ -1,0 +1,30 @@
+CREATE proc [schema].[get_winds_show]
+as
+begin
+
+    drop table [prefix1_shows].[schema].[winds_show];
+    select a.stars_id
+         , a.stars_name
+         , a.wind_month
+         , a.wind_amount
+         , a.state_mapping_name
+         , a.detailed_mapping_name
+         , a.subgrouping_name
+         , a.stars_column_descrcction
+         , b.wind_file_short_name
+         , a.last_update
+         , showing_countries.showing_magic_name
+         , showing_countries.region
+        into [prefix1_shows].[schema].[winds_show]
+        from [prefix1_prefix2].[schema].[prefix2_winds_history] a
+                 left join [prefix1_prefix2].[schema].[prefix2_winds_files] b
+                           on a.wind_file_id = b.wind_file_id
+                 left join (select distinct a.showing_magic_id, a.showing_magic_name, a.region
+                                from [prefix1_prefix2].[schema].[prefix2_magic] a) showing_countries
+                           on a.showing_magic_id = showing_countries.showing_magic_id
+        where ((a.stars_id >= 3000 and a.stars_id <= 7999)
+            or (a.stars_id <= 1999))
+          and a.stars_id not in (select stars_id from prefix1_prefix2.schema.excluded_winds)
+          and showing_countries.showing_magic_name is not null
+
+end

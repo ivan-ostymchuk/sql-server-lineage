@@ -1,0 +1,56 @@
+-- =============================================
+-- Author: <ABC>
+-- Create date: <Create Date,2069-12-25>
+-- =============================================
+
+CREATE procedure [schema].[get_farm_shotouts_show]
+as
+begin
+
+--drop table prefix1_shows.schema.farm_shotouts_show
+--;
+--
+--create table farm_shotouts_show (
+--	pwb_pk_id bigint identity(1,1) not null,
+--	prefix2_date_id bigint null,
+-- 	ticket_id bigint null,
+--	bazar_id int null,
+--	prefix2_table_id bigint null,
+-- 	shotouts bigint null
+--)
+--;
+
+-- delete all rows from farm_shotouts_show
+delete from farm_shotouts_show
+;
+
+-- load prefix2 data into show
+set identity_insert farm_shotouts_show on
+;
+insert into farm_shotouts_show (
+	pwb_pk_id,
+	prefix2_date_id,
+	ticket_id,
+	bazar_id,
+	prefix2_table_id,
+	shotouts
+)
+select
+	prefix2_shotout_id,
+	prefix2_date_id,
+	ticket_id,
+	bazar_id,
+	prefix2_table_id,
+	shotouts
+from prefix1_prefix2.schema.prefix2_shotouts with(nolock)
+;
+set identity_insert farm_shotouts_show off
+;
+
+
+-----AAA------ small change to convert bazar 94 to 95. Ticket: abcdefg
+
+update farm_shotouts_show 
+set bazar_id = 95
+where bazar_id = 94
+end

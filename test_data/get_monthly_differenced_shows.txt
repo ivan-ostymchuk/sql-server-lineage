@@ -1,0 +1,86 @@
+CREATE procedure [schema].[get_monthly_differenced_shows]
+as
+begin
+
+    --#1winds_history_show_kpi
+
+    drop table if exists [prefix1_shows].[schema].[winds_history_show_monthly];
+
+    select *
+    into [prefix1_shows].[schema].[winds_history_show_monthly]
+    from [prefix1_shows].[schema].[winds_history_show_view];
+
+--#2all_exchanges_merge_v1_monthly
+
+    drop table if exists [prefix1_shows].[schema].[all_exchanges_merge_v1_monthly]
+
+    select *
+    into [prefix1_shows].[schema].[all_exchanges_merge_v1_monthly]
+    from [prefix1_shows].[schema].[all_exchanges_merge_v1_monthly_view]
+
+
+--#3fc_monthly_breakdown_show_kpi
+
+    drop table if exists [prefix1_shows].[schema].[fc_monthly_breakdown_show_kpi]
+
+    select *
+    into [prefix1_shows].[schema].[fc_monthly_breakdown_show_kpi]
+    from [prefix1_shows].[schema].[fc_monthly_breakdown_show_view]
+
+--#4pp_unfiltered_icecream_monthly
+
+    drop table if exists [prefix1_shows].[schema].[pp_unfiltered_icecream_monthly]
+
+    select *
+    into [prefix1_shows].[schema].[pp_unfiltered_icecream_monthly]
+    from [prefix1_shows].[schema].[pp_unfiltered_icecream_monthly_view]
+
+--#5pp_unfiltered_irons_monthly
+
+    drop table if exists [prefix1_shows].[schema].[pp_unfiltered_irons_monthly]
+
+    select *
+    into [prefix1_shows].[schema].[pp_unfiltered_irons_monthly]
+    from [prefix1_shows].[schema].[pp_unfiltered_irons_monthly_view]
+
+--#6farm_all_key_rubrik_monthly
+
+    drop table if exists [prefix1_shows].[schema].[farm_all_key_rubrik_monthly]
+
+    select *
+    into [prefix1_shows].[schema].[farm_all_key_rubrik_monthly]
+    from [prefix1_shows].[schema].[farm_all_key_rubrik_monthly_view]
+
+--#7farm_fr_searching_merged_show_bombies_monthly
+
+    drop table if exists [prefix1_shows].[schema].[farm_fr_searching_merged_show_bombies_monthly]
+
+    select *
+    into [prefix1_shows].[schema].[farm_fr_searching_merged_show_bombies_monthly]
+    from [prefix1_shows].[schema].[farm_fr_searching_merged_show_bombies_monthly_view]
+
+--#8farm_shotouts_show_monthly
+
+    drop table if exists [prefix1_shows].[schema].[farm_shotouts_show_monthly]
+
+    select *
+    into [prefix1_shows].[schema].[farm_shotouts_show_monthly]
+    from [prefix1_shows].[schema].[farm_shotouts_show_monthly_view]
+
+--#9farm_month_differenced_elixirs_shotouts_dim
+
+    drop table if exists [prefix1_shows].[schema].[farm_month_differenced_elixirs_shotouts_dim]
+
+    select *
+    into [prefix1_shows].[schema].[farm_month_differenced_elixirs_shotouts_dim]
+    from [prefix1_shows].[schema].[farm_month_differenced_elixirs_shotouts_dim_view]
+
+--#10farm_sc_monthly
+
+    drop table if exists [prefix1_shows].[schema].[farm_sc_monthly]
+
+    select *
+    into [prefix1_shows].[schema].[farm_sc_monthly]
+    from [prefix1_shows].[schema].[farm_sc_monthly_view]
+
+end;

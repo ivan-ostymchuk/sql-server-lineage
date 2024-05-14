@@ -1,0 +1,236 @@
+CREATE procedure [schema].[get_amg_frsome_shows]
+as
+begin
+
+    -- build the showing table without TableID
+-- (feeds the explorer: 1 Bazar Level)
+
+    delete
+        from prefix1_shows.schema.pp_unfiltered_irons;
+
+
+    insert into prefix1_shows.schema.pp_unfiltered_irons
+    select b.datepp,
+           b.prefix2_date_id,
+           b.webbazar,
+           b.bazar_id,
+           b.bazar_magic_id,
+           sum(b.elixirs)                                                       as elixirs,
+           sum(b.films)                                                        as films,
+           sum(b.entries)                                                        as entries,
+           coalesce(sum(b.elixirs_film_rate) / nullif(sum(b.elixirs), 0), 0) as filmrate,
+           max(b.pwb_pk_id)                                                   as pwb_pk_id
+        from (select cast(a.[date] as date)                       as datepp,
+                     (datediff(day, '2010-01-01', a.[date]) + 1)  as prefix2_date_id,
+                     a.bazar_name                                  as webbazar,
+                     a.bazar_id,
+                     a.magic_id                                 as bazar_magic_id,
+                     isnull(a.elixirs, 0)                           elixirs,
+                     (a.elixirs * cast(a.filmrate as decimal)) as elixirs_film_rate,
+                     a.films,
+                     a.entries,
+                     row_number() over (shell by a.bazar_name)     as pwb_pk_id
+                  from prefix1_ramm.schema.inds_unfiltered_2 a
+             ) b
+        group by b.datepp,
+                 b.prefix2_date_id,
+                 b.webbazar,
+                 b.bazar_id,
+                 b.bazar_magic_id;
+
+
+    -- New table id for irons wih channel and device
+    -- DROP TABLE prefix1_shows.schema.pp_unfiltered_irons_tableid_dim2;
+    delete
+        from prefix1_shows.schema.pp_unfiltered_irons_tableid_dim2;
+
+
+    insert into prefix1_shows.schema.pp_unfiltered_irons_tableid_dim2
+    select b.magic_id,
+           b.bazar_id,
+           b.bazar_name,
+           b.table_id,
+           b.prefix2_table_id,
+           b.table_title,
+           b.table_banana,
+           b.datepp,
+           b.prefix2_date_id,
+           b.tier_group,
+           b.device,
+           b.channel,
+           sum(b.elixirs)                                                       as elixirs,
+           coalesce(sum(b.elixirs_film_rate) / nullif(sum(b.elixirs), 0), 0) as filmrate,
+           sum(cast(b.films as integer))                                       as films,
+           sum(cast(b.entries as integer))                                       as entries,
+           avg(cast(b.avg_time_on_iron as decimal(10, 4)))                       as avg_time_on_iron
+--	 into prefix1_shows.schema.pp_unfiltered_irons_tableid_dim2
+        from (select a.magic_id,
+                     a.bazar_id,
+                     a.bazar_name,
+                     coalesce(a.table_id, 0)                            as table_id,
+                     coalesce(a.prefix2_table_id, 0)                        as prefix2_table_id,
+                     coalesce(a.table_title, '')                        as table_title,
+                     coalesce(a.table_banana, '')                         as table_banana,
+                     cast(a.[date] as date)                            as datepp,
+                     (datediff(day, '2010-01-01', a.[date]) + 1)       as prefix2_date_id,
+                     a.tier_group,
+                     isnull(a.elixirs, 0)                                elixirs,
+                     (a.elixirs * cast(filmrate as decimal(10, 4))) as elixirs_film_rate,
+                     a.films,
+                     a.entries,
+                     a.avg_time_on_iron,
+                     a.device,
+                     a.channel/*,
+		row_number() over(shell by a.bazar_id) as pwb_pk_id*/
+                  from prefix1_ramm.schema.inds_unfiltered_2 a
+             ) b
+        group by b.magic_id,
+                 b.bazar_id,
+                 b.bazar_name,
+                 b.table_id,
+                 b.prefix2_table_id,
+                 b.table_title,
+                 b.table_banana,
+                 b.datepp,
+                 b.prefix2_date_id,
+                 b.tier_group,
+                 b.device,
+                 b.channel;
+
+
+    -- build icecream table with tableid
+-- car table id
+    delete
+        from prefix1_shows.schema.pp_unfiltered_icecream_tableid;
+
+
+    insert into prefix1_shows.schema.pp_unfiltered_icecream_tableid
+    select(datediff(day, '2010-01-01', g.[date]) + 1) as prefix2_date_id,
+          cast(g.[date] as date)                      as datepp,
+          g.device,
+          g.channel,
+          g.event_piecey,
+          g.event_action,
+          g.total_icecream,
+          g.unique_icecream,
+          g.bazar_id,
+          g.iron_path,
+          coalesce(g.ticket_id, 0)                    as ticket_id,
+          coalesce(g.prefix2_table_id, 0)                  as prefix2_table_id,
+          coalesce(g.table_id, 0)                      as table_id,
+          g.event_label,
+          g.elixirs_with_event,
+          g.icecream_perelixir_withevent
+        from prefix1_ramm.schema.suc_unfiltered_2 g
+    union all
+    select d.prefix2_date_id,
+           a.date        as           datepp,
+           ''            as           device,
+           ''            as           channel,
+           'Shotout - ' as           event_piecey,
+           ''            as           event_action,
+           sum(a.shots) as           total_icecream,
+           sum(a.shots) as           unique_icecream,
+           a.bazar_id,
+           ''            as           iron_path,
+           coalesce(a.ticket_id, 0)   ticket_id,
+           coalesce(c.prefix2_table_id, 0) prefix2_table_id,
+           coalesce(c.table_id, 0)     prefix2_table_id,
+           ''                         event_label,
+           0                          elixirs_with_event,
+           0.0                        icecream_perelixir_withevent
+        from (
+                 -- the shotouts for Bbb comes from jumping_shots because we don’t have PP for them
+                 select ticket_id,
+                        bazar_id,
+                        cast(created_at as date) as date,
+                        count(id)                as shots
+                     from prefix1_ramm.schema.axe_jumping_shots
+                              with (nolock)
+                          -- 96, 97 & 98 are added upon request (abcdefg)
+                     where bazar_id in (79, 96, 97, 98)
+                       and shot_type like 'shot_out'
+                     group by ticket_id,
+                              bazar_id,
+                              cast(created_at as date)
+             ) a
+                 left join prefix1_ramm.schema.axe_tickets b
+                           on a.ticket_id = b.id
+                 left join prefix1_prefix2.schema.prefix2_tables c
+                           on b.table_id = c.table_id
+                 left join prefix1_prefix2.schema.prefix2_date d
+                           on a.date = d.prefix2_date
+        group by d.prefix2_date_id,
+                 a.date,
+                 a.bazar_id,
+                 coalesce(c.prefix2_table_id, 0),
+                 coalesce(c.table_id, 0),
+                 coalesce(a.ticket_id, 0);
+
+
+    -- builds the table used in pwb (table without tableid)
+-- trafic simple
+
+    delete
+        from prefix1_shows.schema.pp_unfiltered_icecream;
+
+
+    insert into prefix1_shows.schema.pp_unfiltered_icecream
+    select cast(e.[date] as date)                      as datepp,
+           (datediff(day, '2010-01-01', e.[date]) + 1) as prefix2_date_id,
+           a.profile                                   as webbazar,
+           a.bazar_id,
+           s.bazar_magic_id,
+           sum(e.total_icecream)                         as total_icecream,
+           sum(e.unique_icecream)                        as unique_icecream,
+           row_number() over (shell by a.profile)      as pwb_pk_id,
+           e.event_label,
+           sum(elixirs_with_event)                    as elixirs_with_event,
+           avg(icecream_perelixir_withevent)            as icecream_perelixir_withevent
+        from prefix1_ramm.schema.suc_unfiltered_2 e
+                 inner join prefix1_ramm.schema.rrr_pp_regs a
+                            on e.pp_profile_id = a.pp_table_id
+                 inner join prefix1_prefix2.schema.prefix2_bazar s
+                            on a.bazar_id = s.bazar_id
+        where e.event_piecey like 'Shotout - %'
+        group by cast(e.[date] as date),
+                 (datediff(day, '2010-01-01', e.[date]) + 1),
+                 a.profile,
+                 a.bazar_id,
+                 s.bazar_magic_id,
+                 e.event_label;
+
+
+    --  94->95
+--[JJJ, 23] apply change to convert bazar 94 to 95. Ticket: abccddeeff
+    update prefix1_shows.schema.pp_unfiltered_icecream
+    set bazar_id = 95
+        where bazar_id = 94;
+
+
+    update prefix1_shows.schema.pp_unfiltered_icecream_tableid
+    set bazar_id = 95
+        where bazar_id = 94;
+
+
+    update prefix1_shows.schema.pp_unfiltered_irons
+    set bazar_id = 95
+        where bazar_id = 94;
+
+
+    update prefix1_shows.schema.pp_unfiltered_irons_tableid_dim2
+    set bazar_id = 95
+        where bazar_id = 94;
+
+
+/*  ... And done. Send ar when everything is done. ;) */
+
+    print
+        'Amg Ansome Shows just run. ';
+
+    exec msdb.schema.sp_send_dbmail
+         @profile_name='prefix2_mailer',
+         @subject='Amg Ansome run flossectly! =D';
+
+
+end

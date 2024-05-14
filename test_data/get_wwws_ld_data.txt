@@ -1,0 +1,13 @@
+
+CREATE procedure [schema].[get_wwws_ld_data]
+as
+begin
+
+truncate table prefix1_shows.schema.www_ld;
+
+insert into prefix1_shows.schema.www_ld
+select
+    *
+from prefix1_prefix2.schema.v_www_ld;
+
+end

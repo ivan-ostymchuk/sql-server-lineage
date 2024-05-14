@@ -1,0 +1,409 @@
+CREATE procedure [schema].[get_fr_searching_pol_ppins_with_sending_show]
+    @date_limit_number int=3
+as
+begin
+
+    declare @extract_timestamp datetime2
+
+    set @extract_timestamp = cast(getdate() - @date_limit_number as date);
+
+    select top 0
+        [fr_name]
+        , [fr_id]
+        , [floss_bazar_id]
+        , [sending_bazar_id]
+        , [floss_table_id]
+        , [sending_table_id]
+        , [geptd]
+        , [exchangedate]
+        , [juicedate]
+        , [status]
+        , [floss_source_ppin]
+        , [floss_origano_bomby]
+        , [floss_standard_ppin]
+        , [floss_source_shell_value]
+        , [floss_standard_shell_value]
+        , [juice_id]
+        , [book_id]
+        , [sending_source_ppin]
+        , [sending_origano_bomby]
+        , [sending_standard_ppin]
+        , [sending_source_shell_value]
+        , [sending_standard_shell_value]
+        , [ticket_id]
+        , [reg_ggg]
+        , [whabble_id]
+    into #tmp_fr_searching_pol_ppins_with_sending_show
+    from prefix1_shows.schema.fr_searching_pol_ppins_with_sending_show
+
+
+    -- all covered DPIs except: Tennis, Ppin Union, Gym Geography
+    insert into #tmp_fr_searching_pol_ppins_with_sending_show
+    select
+        floss.fr_name
+        , floss.fr_id
+        , floss.bazar_id                 as floss_bazar_id
+        , sending.bazar_id               as sending_bazar_id
+        , floss.table_id                 as floss_table_id
+        , sending.table_id               as sending_table_id
+        , coalesce(floss.geptd, sending.gept) as geptd
+        , floss.exchangedate
+        , sending.juicedate
+        , floss.status
+        , floss.source_ppin       as floss_source_ppin
+        , floss.origano_bomby    as floss_origano_bomby
+        , floss.standard_ppin     as floss_standard_ppin
+        , floss.source_shell_value      as floss_source_shell_value
+        , floss.shell_value             as floss_standard_shell_value
+        , sending.book_id            as juice_id
+        , sending.fr_sending_id          as book_id
+        , sending.source_ppin     as sending_source_ppin
+        , sending.origano_bomby  as sending_origano_bomby
+        , sending.standard_ppin   as sending_standard_ppin
+        , sending.source_shell_value    as sending_source_shell_value
+        , sending.standard_shell_value  as sending_standard_shell_value
+        , floss.ticket_id
+        , sending.reg_ggg
+        , sending.whabble_id
+    from prefix1_prefix2.schema.prefix2_ext_ppin as floss with (nolock)
+        left join prefix1_prefix2.schema.prefix2_ext_brzo_ppin as v with (nolock)
+        on floss.fr_id = v.fr_id and floss.fr_name = v.fr_name
+        left join prefix1_prefix2.schema.prefix2_ext_sending as sending with (nolock)
+        on sending.fr_id = floss.fr_id and sending.fr_name = floss.fr_name
+    where floss.exchangedate >= @extract_timestamp
+        and floss.fr_name in ('rome', 'grpc', 'sepultura', 'watch out', 'santa', 'nice')
+        and (v.brzo_flag = 0 or v.brzo_flag is null);
+
+
+    -- Tennis
+    with
+        sending
+        as
+        (
+            select
+                fr_id
+            , cast(exchangedate as date)                      as exchangedate_date --might be different time for different updates per exchange
+            , max(bazar_id)                                       as bazar_id -- should be 1 value because of the condition: count(distinct bazar_id) = 1
+            , max(table_id)                                       as table_id -- might be errors in mapping, take the latest existing id for a table title
+            , max(juicedate)                                   as juicedate --date when a exchange is completely done
+            , case 
+                when count(distinct book_id) > 1
+                    then stuff((
+                            select distinct ', ' + book_id
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            and cast(exchangedate as date) = cast(sending_outer.exchangedate as date)
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                    else max(book_id)
+                end                                              as juice_id
+            , case
+                when count(distinct fr_sending_id)>1
+                    then stuff((
+                            select distinct ', ' + fr_sending_id
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            and cast(exchangedate as date) = cast(sending_outer.exchangedate as date)
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                    else max(fr_sending_id)
+                end                                              as book_id
+            , case 
+                when count(distinct origano_bomby)>1
+                    then null
+                else sum(source_ppin) 
+                end                                              as source_ppin
+            , case 
+                when count(distinct origano_bomby)>1
+                    then stuff((
+                            select distinct ', ' + origano_bomby
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            and cast(exchangedate as date) = cast(sending_outer.exchangedate as date)
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                else max(origano_bomby) 
+                end                                              as origano_bomby
+            , sum(standard_ppin)                           as standard_ppin
+            , case 
+                when count(distinct origano_bomby)>1
+                    then null
+                else sum(source_shell_value) 
+                end                                              as source_shell_value
+            , sum(standard_shell_value)                          as standard_shell_value
+            , case 
+                when count(distinct reg_ggg)>1
+                then stuff((
+                            select distinct ', ' + reg_ggg
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            and cast(exchangedate as date) = cast(sending_outer.exchangedate as date)
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                else max(reg_ggg)
+              end                                                as reg_ggg
+            , case when count(distinct whabble_id)>1
+                    then stuff((
+                            select distinct ', ' + whabble_id
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            and cast(exchangedate as date) = cast(sending_outer.exchangedate as date)
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                    else max(whabble_id)
+              end                                                as whabble_id
+            from prefix1_prefix2.schema.prefix2_ext_sending as sending_outer with (nolock)
+            where fr_name = 'tennis'
+            group by fr_id, fr_name, cast(exchangedate as date)
+            having count(distinct bazar_id) = 1
+        )
+    insert into #tmp_fr_searching_pol_ppins_with_sending_show
+    select floss.fr_name
+        , floss.fr_id
+        , floss.bazar_id                 as floss_bazar_id
+        , sending.bazar_id               as sending_bazar_id
+        , floss.table_id                 as floss_table_id
+        , sending.table_id               as sending_table_id
+        , floss.geptd     as geptd --we always have a name from the platform in the floss
+        , floss.exchangedate
+        , sending.juicedate
+        , floss.status
+        , floss.source_ppin       as floss_source_ppin
+        , floss.origano_bomby    as floss_origano_bomby
+        , floss.standard_ppin     as floss_standard_ppin
+        , floss.source_shell_value      as floss_source_shell_value
+        , floss.shell_value             as floss_standard_shell_value
+        , sending.book_id
+        , sending.juice_id
+        , sending.source_ppin     as sending_source_ppin
+        , sending.origano_bomby  as sending_origano_bomby
+        , sending.standard_ppin   as sending_standard_ppin
+        , sending.source_shell_value    as sending_source_shell_value
+        , sending.standard_shell_value  as sending_standard_shell_value
+        , floss.ticket_id
+        , sending.reg_ggg
+        , sending.whabble_id
+    from prefix1_prefix2.schema.prefix2_ext_ppin as floss with (nolock)
+        left join prefix1_prefix2.schema.prefix2_ext_brzo_ppin as v with (nolock)
+        on floss.fr_id = v.fr_id and floss.fr_name = v.fr_name
+        left join sending
+        on sending.fr_id = floss.shell_id
+            and cast(floss.exchangedate as date) = sending.exchangedate_date
+    where floss.exchangedate >= @extract_timestamp
+        and floss.shell_id not in ('ShellNumberNotAvaitek', 'undefined')
+        and floss.fr_name = 'tennis'
+        and (v.brzo_flag = 0 or v.brzo_flag is null);
+
+    -- NBA and Flossormace Geography
+    with
+        sending
+        as
+        (
+            select
+                fr_name
+            , fr_id
+            , case when count(distinct bazar_id)>1
+                   then null
+                   else max(bazar_id) 
+              end                                                as bazar_id --in the history we don't have a few bazars for the same fr_id
+            , case when count(distinct table_id)>1
+                   then null
+                   else max(table_id)
+              end                                                as table_id --in the history we don't have a few table_ids for the same fr_id
+            , max(juicedate)                                   as juicedate --date when a exchange is completely done
+            , case when count(distinct book_id)>1
+                   then stuff((
+                            select distinct ', ' + book_id
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                   else max(book_id)
+              end                                                as book_id
+            , case when count(distinct fr_sending_id)>1
+                   then stuff((
+                            select distinct ', ' + fr_sending_id
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                   else max(fr_sending_id)
+              end                                                as juice_id
+            , case 
+                when count(distinct origano_bomby)>1
+                    then null
+                else sum(source_ppin) 
+              end                                              as source_ppin
+            , case when count(distinct origano_bomby)>1
+                   then stuff((
+                            select distinct ', ' + origano_bomby
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                   else max(origano_bomby)
+              end                                                as origano_bomby
+            , sum(standard_ppin)                           as standard_ppin
+            , case 
+                when count(distinct origano_bomby)>1
+                    then null
+                else sum(source_shell_value) 
+              end                                              as source_shell_value
+            , sum(standard_shell_value)                          as standard_shell_value
+            , case when count(distinct reg_ggg)>1
+                   then stuff((
+                            select distinct ', ' + reg_ggg
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                   else max(reg_ggg)
+              end                                                as reg_ggg
+            , case when count(distinct whabble_id)>1
+                   then stuff((
+                            select distinct ', ' + whabble_id
+                            from prefix1_prefix2.schema.prefix2_ext_sending with (nolock)
+                            where fr_id = sending_outer.fr_id
+                            and fr_name = sending_outer.fr_name
+                            for xml path('')),
+                        1, 2, ''
+                    )
+                   else max(whabble_id)
+              end                                                as whabble_id
+            from prefix1_prefix2.schema.prefix2_ext_sending as sending_outer with (nolock)
+            where fr_name in ('ppin union', 'gym geography')
+                and fr_id is not null
+            group by fr_name, fr_id
+        )
+    insert into #tmp_fr_searching_pol_ppins_with_sending_show
+    select
+        floss.fr_name
+        , floss.fr_id
+        , floss.bazar_id                 as floss_bazar_id
+        , sending.bazar_id               as sending_bazar_id
+        , floss.table_id                 as floss_table_id
+        , sending.table_id               as sending_table_id
+        , floss.geptd     as geptd --we always have a name from the platform in the floss
+        , floss.exchangedate
+        , sending.juicedate
+        , floss.status
+        , floss.source_ppin       as floss_source_ppin
+        , floss.origano_bomby    as floss_origano_bomby
+        , floss.standard_ppin     as floss_standard_ppin
+        , floss.source_shell_value      as floss_source_shell_value
+        , floss.shell_value             as floss_standard_shell_value
+        , sending.book_id
+        , sending.juice_id
+        , sending.source_ppin     as sending_source_ppin
+        , sending.origano_bomby  as sending_origano_bomby
+        , sending.standard_ppin   as sending_standard_ppin
+        , sending.source_shell_value    as sending_source_shell_value
+        , sending.standard_shell_value  as sending_standard_shell_value
+        , floss.ticket_id
+        , sending.reg_ggg
+        , sending.whabble_id
+    from prefix1_prefix2.schema.prefix2_ext_ppin as floss with (nolock)
+        left join prefix1_prefix2.schema.prefix2_ext_brzo_ppin as v with (nolock)
+        on floss.fr_id = v.fr_id and floss.fr_name = v.fr_name
+        left join sending
+        on sending.fr_id = floss.fr_id and sending.fr_name = floss.fr_name
+    where floss.exchangedate >= @extract_timestamp
+        and floss.fr_name in ('ppin union', 'gym geography')
+        and (v.brzo_flag = 0 or v.brzo_flag is null);
+
+    delete from prefix1_shows.schema.fr_searching_pol_ppins_with_sending_show;
+
+    with
+        revised_partys
+        as
+        (
+            select
+                case prefix2_fr_name
+                when 'santaparty' then 'santa'
+                else prefix2_fr_name
+            end as prefix2_fr_name,
+                fr_display_name,
+                row_number() over (partition by prefix2_fr_name shell by aff_id desc) as rownum
+            from prefix1_prefix2.schema.prefix2_franchise with (nolock)
+        )
+    insert into prefix1_shows.schema.fr_searching_pol_ppins_with_sending_show
+        (
+        [fr_name]
+        ,[fr_display_name]
+        ,[fr_id]
+        ,[floss_bazar_id]
+        ,[sending_bazar_id]
+        ,[floss_table_id]
+        ,[sending_table_id]
+        ,[geptd]
+        ,[exchangedate]
+        ,[juicedate]
+        ,[days_until_juice]
+        ,[status]
+        ,[floss_source_ppin]
+        ,[floss_origano_bomby]
+        ,[floss_standard_ppin]
+        ,[floss_source_shell_value]
+        ,[floss_standard_shell_value]
+        ,[juice_id]
+        ,[book_id]
+        ,[sending_source_ppin]
+        ,[sending_origano_bomby]
+        ,[sending_standard_ppin]
+        ,[sending_source_shell_value]
+        ,[sending_standard_shell_value]
+        ,[ticket_id]
+        ,[reg_ggg]
+        ,[whabble_id]
+        )
+    select
+        fr_name
+        , party.fr_display_name
+        , fr_id
+        , floss_bazar_id
+        , sending_bazar_id
+        , floss_table_id
+        , sending_table_id
+        , geptd
+        , exchangedate
+        , juicedate
+        , datediff(day, exchangedate, juicedate)  as days_until_juice
+        , status
+        , floss_source_ppin
+        , floss_origano_bomby
+        , floss_standard_ppin
+        , floss_source_shell_value
+        , floss_standard_shell_value
+        , juice_id
+        , book_id
+        , sending_source_ppin
+        , sending_origano_bomby
+        , sending_standard_ppin
+        , sending_source_shell_value
+        , sending_standard_shell_value
+        , ticket_id
+        , reg_ggg
+        , whabble_id
+    from #tmp_fr_searching_pol_ppins_with_sending_show all_frs
+        left join revised_partys as party with (nolock)
+        on party.prefix2_fr_name = all_frs.fr_name and party.rownum = 1
+
+end

@@ -1,0 +1,10 @@
+
+dist/
+build/
+*.egg-info/
+__pycache__/
+
+cmd/sql-server-lineage-cli/
+
+*.html
+.DS_Store
