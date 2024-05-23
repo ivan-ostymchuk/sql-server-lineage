@@ -89,7 +89,9 @@ func parser(
 
 		// skip deletes
 		if slices.Contains(sqlStatementsToSkip, token) {
-			elementsParsed := skipCodeBlockUntilContains(sliceOfTokens, i, []string{"select", "insert", ";"})
+			elementsParsed := skipCodeBlockUntilContains(
+				sliceOfTokens, i, []string{"select", "insert", "merge", ";"},
+			)
 			i += elementsParsed
 			continue
 		}
@@ -101,7 +103,9 @@ func parser(
 			continue
 		}
 		// get stored procedure name
-		if (strings.Contains(token, "create") || strings.Contains(token, "alter")) && len(spName) == 0 {
+		if (strings.Contains(token, "create") ||
+			strings.Contains(token, "alter")) &&
+			len(spName) == 0 {
 			name, err := getSpName(sliceOfTokens, i, tokensToSkip, replacer)
 			if err != nil {
 				fmt.Println("WARNING: ", err)
@@ -110,7 +114,10 @@ func parser(
 			continue
 		}
 		// get sink tables
-		if (strings.Contains(token, "into") || strings.Contains(token, "update")) && i != len(sliceOfTokens)-1 {
+		if (strings.Contains(token, "into") ||
+			strings.Contains(token, "update") ||
+			strings.Contains(token, "merge")) &&
+			i != len(sliceOfTokens)-1 {
 
 			var formattedSinkTable string
 			switch replacer.Replace(token) {
@@ -120,6 +127,8 @@ func parser(
 				elementsParsed := skipCodeBlockUntilNotContains(sliceOfTokens, i, tokensToSkip)
 				sinkTable := sliceOfTokens[i+elementsParsed]
 				formattedSinkTable = replacer.Replace(sinkTable)
+			case "merge":
+				formattedSinkTable = getSinkNameFromMerge(sliceOfTokens, i, tokensToSkip, replacer)
 			default:
 				continue
 			}
@@ -154,8 +163,13 @@ func parser(
 			}
 		}
 		// get sources
-		if (strings.Contains(token, "from") || strings.Contains(token, "join")) && currLineage.sinkType != "" {
-			if replacer.Replace(token) == "from" || replacer.Replace(token) == "join" {
+		if (strings.Contains(token, "from") ||
+			strings.Contains(token, "join") ||
+			strings.Contains(token, "using")) &&
+			currLineage.sinkType != "" {
+			if replacer.Replace(token) == "from" ||
+				replacer.Replace(token) == "join" ||
+				replacer.Replace(token) == "using" {
 				sources, elementsParsed := getSources(replacer, sliceOfTokens, i, tokensToSkip)
 				for _, source := range sources {
 					if !slices.Contains(currLineage.sources, source) && source != currLineage.sink {
@@ -302,7 +316,7 @@ func getSources(
 	tokensToSkip []string,
 ) ([]string, int) {
 
-	stopTokens := []string{"into", "update", "delete"}
+	stopTokens := []string{"into", "update", "delete", "merge"}
 	functionNamesToSkip := []string{"openquery", "opendatasource", "openrowset"}
 	var elementsProcessed int
 	sources := make([]string, 0)
@@ -314,9 +328,11 @@ forLoop:
 		case strings.Contains(token, "--") || strings.Contains(token, "/*"):
 			nTokensToSkip := skipComments(sliceOfTokens, iso)
 			iso += nTokensToSkip
-		case strings.Contains(token, "from") || strings.Contains(token, "join"):
+		case strings.Contains(token, "from") ||
+			strings.Contains(token, "join") ||
+			strings.Contains(token, "using"):
 			cleanToken := replacer.Replace(token)
-			if cleanToken != "from" && cleanToken != "join" {
+			if cleanToken != "from" && cleanToken != "join" && cleanToken != "using" {
 				continue
 			}
 			elementsParsed := skipCodeBlockUntilNotContains(sliceOfTokens, iso, tokensToSkip)
@@ -472,6 +488,30 @@ func unnestTempTables(tempTablesLineage map[string]spLineage) map[string]spLinea
 		tempTablesLineage[lineage.sink] = lineage
 	}
 	return tempTablesLineage
+}
+
+func getSinkNameFromMerge(
+	sliceOfTokens []string,
+	i int,
+	tokensToSkip []string,
+	replacer *strings.Replacer,
+) string {
+	tokensToSkipForMerge := []string{"\n", "\r", "\t", " ", "(", ")"}
+	var sinkTableFromMerge string
+	elementsParsed := skipCodeBlockUntilNotContains(sliceOfTokens, i, tokensToSkip)
+	sinkTable := sliceOfTokens[i+elementsParsed]
+	offset := i + elementsParsed
+	if strings.Contains(sinkTable, "top") {
+		// skip TOP function
+		elementsParsed1 := skipCodeBlockUntilNotContains(sliceOfTokens, offset, tokensToSkipForMerge)
+		// skip TOP function argument
+		elementsParsed2 := skipCodeBlockUntilNotContains(sliceOfTokens, offset+elementsParsed1, tokensToSkipForMerge)
+		sinkTable := sliceOfTokens[offset+elementsParsed1+elementsParsed2]
+		sinkTableFromMerge = replacer.Replace(sinkTable)
+	} else {
+		sinkTableFromMerge = replacer.Replace(sinkTable)
+	}
+	return sinkTableFromMerge
 }
 
 func getSinkNameFromUpdate(
