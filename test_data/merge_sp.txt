@@ -1,0 +1,59 @@
+CREATE procedure [schema].[merge_sp]
+as
+begin
+
+
+    --Synchronize the target table with refreshed data from source table
+    MERGE Products AS TARGET
+    USING UpdatedProducts AS SOURCE 
+    ON (TARGET.ProductID = SOURCE.ProductID) 
+    --When records are matched, update the records if there is any change
+    WHEN MATCHED AND TARGET.ProductName <> SOURCE.ProductName OR TARGET.Rate <> SOURCE.Rate 
+    THEN UPDATE SET TARGET.ProductName = SOURCE.ProductName, TARGET.Rate = SOURCE.Rate 
+    --When no records are matched, insert the incoming records from source table to target table
+    WHEN NOT MATCHED BY TARGET 
+    THEN INSERT (ProductID, ProductName, Rate) VALUES (SOURCE.ProductID, SOURCE.ProductName, SOURCE.Rate)
+    --When there is a row that exists in target and same record does not exist in source then delete this record target
+    WHEN NOT MATCHED BY SOURCE 
+    THEN DELETE;
+
+    MERGE INTO Products_2 AS TARGET
+    USING UpdatedProducts AS SOURCE 
+    ON (TARGET.ProductID = SOURCE.ProductID) 
+    --When records are matched, update the records if there is any change
+    WHEN MATCHED AND TARGET.ProductName <> SOURCE.ProductName OR TARGET.Rate <> SOURCE.Rate 
+    THEN UPDATE SET TARGET.ProductName = SOURCE.ProductName, TARGET.Rate = SOURCE.Rate 
+    --When no records are matched, insert the incoming records from source table to target table
+    WHEN NOT MATCHED BY TARGET 
+    THEN INSERT (ProductID, ProductName, Rate) VALUES (SOURCE.ProductID, SOURCE.ProductName, SOURCE.Rate)
+    --When there is a row that exists in target and same record does not exist in source then delete this record target
+    WHEN NOT MATCHED BY SOURCE 
+    THEN DELETE;
+
+    MERGE top(10) Products_3 AS TARGET
+    USING UpdatedProducts AS SOURCE 
+    ON (TARGET.ProductID = SOURCE.ProductID) 
+    --When records are matched, update the records if there is any change
+    WHEN MATCHED AND TARGET.ProductName <> SOURCE.ProductName OR TARGET.Rate <> SOURCE.Rate 
+    THEN UPDATE SET TARGET.ProductName = SOURCE.ProductName, TARGET.Rate = SOURCE.Rate 
+    --When no records are matched, insert the incoming records from source table to target table
+    WHEN NOT MATCHED BY TARGET 
+    THEN INSERT (ProductID, ProductName, Rate) VALUES (SOURCE.ProductID, SOURCE.ProductName, SOURCE.Rate)
+    --When there is a row that exists in target and same record does not exist in source then delete this record target
+    WHEN NOT MATCHED BY SOURCE 
+    THEN DELETE;
+
+    MERGE top 10 Products_4 AS TARGET
+    USING UpdatedProducts AS SOURCE 
+    ON (TARGET.ProductID = SOURCE.ProductID) 
+    --When records are matched, update the records if there is any change
+    WHEN MATCHED AND TARGET.ProductName <> SOURCE.ProductName OR TARGET.Rate <> SOURCE.Rate 
+    THEN UPDATE SET TARGET.ProductName = SOURCE.ProductName, TARGET.Rate = SOURCE.Rate 
+    --When no records are matched, insert the incoming records from source table to target table
+    WHEN NOT MATCHED BY TARGET 
+    THEN INSERT (ProductID, ProductName, Rate) VALUES (SOURCE.ProductID, SOURCE.ProductName, SOURCE.Rate)
+    --When there is a row that exists in target and same record does not exist in source then delete this record target
+    WHEN NOT MATCHED BY SOURCE 
+    THEN DELETE;
+
+end;

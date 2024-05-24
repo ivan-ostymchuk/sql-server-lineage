@@ -687,6 +687,35 @@ func TestLexerAndParserValidStrings(t *testing.T) {
 				},
 			},
 		},
+		"../test_data/merge_sp.txt": {
+			"Products": {
+				"schema.merge_sp": []string{
+					"UpdatedProducts",
+				},
+			},
+			"Products_2": {
+				"schema.merge_sp": []string{
+					"UpdatedProducts",
+				},
+			},
+			"Products_3": {
+				"schema.merge_sp": []string{
+					"UpdatedProducts",
+				},
+			},
+			"Products_4": {
+				"schema.merge_sp": []string{
+					"UpdatedProducts",
+				},
+			},
+		},
+		"../test_data/merge_sp_sub.txt": {
+			"Products": {
+				"schema.merge_sp": []string{
+					"dbo.test",
+				},
+			},
+		},
 	}
 	for testFile, expectedResult := range tests {
 		file, err := os.Open(testFile)
