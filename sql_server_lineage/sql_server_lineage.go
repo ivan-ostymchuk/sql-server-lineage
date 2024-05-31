@@ -553,7 +553,7 @@ forLoop:
 						tableToUpdate = t
 						aliasUpdated = true
 					}
-					if index+1 == len(probableTables) && !aliasUpdated {
+					if index+1 == len(probableTables) && !aliasUpdated && len(alias) == 0 {
 						tableToUpdate = t
 					}
 				}
@@ -593,7 +593,11 @@ func getTableToUpdateWithAlias(
 			nTokensToSkip := skipComments(updateSlice, index)
 			index += nTokensToSkip
 		case !slices.Contains(tokensToSkip, updateSlice[index]):
-			tokensToCheck = append(tokensToCheck, replacer.Replace(updateSlice[index]))
+			//tokensToCheck = append(tokensToCheck, replacer.Replace(updateSlice[index]))
+			cleanToken := replacer.Replace(updateSlice[index])
+			if len(cleanToken) > 0 {
+				tokensToCheck = append(tokensToCheck, cleanToken)
+			}
 		}
 	}
 
