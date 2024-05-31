@@ -7,7 +7,6 @@ begin
         select * from dbo.test
     )
 
-
     --Synchronize the target table with refreshed data from source table
     MERGE Products AS TARGET
     USING (
@@ -22,6 +21,17 @@ begin
     THEN INSERT (ProductID, ProductName, Rate) VALUES (SOURCE.ProductID, SOURCE.ProductName, SOURCE.Rate)
     --When there is a row that exists in target and same record does not exist in source then delete this record target
     WHEN NOT MATCHED BY SOURCE 
-    THEN DELETE
+    THEN DELETE;
+
+    with cte_table_2 as
+    (
+        select * from dbo.test
+    )
+
+    --Synchronize the target table with refreshed data from source table
+    MERGE INTO Products_2 AS TARGET
+    USING cte_table_2 on C.col1 = s.col1
+    WHEN NOT MATCHED BY TARGET THEN INSERT (col1,col2,col3) VALUES (s.col1, s.col2,s.col3)
+    WHEN NOT MATCHED BY SOURCE THEN UPDATE SET C.col2=s.col2, C.col3=s.col3
 
 end;

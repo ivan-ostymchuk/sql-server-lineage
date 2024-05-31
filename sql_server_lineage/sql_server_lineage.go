@@ -42,13 +42,13 @@ func lexer(sql io.Reader) ([]string, error) {
 	for i := 0; i < len(query); i++ {
 		switch {
 		case strings.Contains(sqlSeparators, string(query[i])) && token.Len() > 0:
-			tokens = append(tokens, token.String())
-			tokens = append(tokens, string(query[i]))
+			tokens = append(tokens, strings.ToLower(token.String()))
+			tokens = append(tokens, strings.ToLower(string(query[i])))
 			token.Reset()
 		case strings.Contains(sqlSeparators, string(query[i])):
-			tokens = append(tokens, string(query[i]))
+			tokens = append(tokens, strings.ToLower(string(query[i])))
 		default:
-			token.WriteString(string(query[i]))
+			token.WriteString(strings.ToLower(string(query[i])))
 		}
 	}
 
@@ -85,7 +85,7 @@ func parser(
 	var currLineage spLineage
 
 	for i := 0; i < len(sliceOfTokens)-1; i++ {
-		token := strings.ToLower(sliceOfTokens[i])
+		token := sliceOfTokens[i]
 
 		// skip deletes
 		if slices.Contains(sqlStatementsToSkip, token) {
@@ -323,7 +323,7 @@ func getSources(
 
 forLoop:
 	for iso := startIndex; iso < len(sliceOfTokens)-2; iso++ {
-		token := strings.ToLower(sliceOfTokens[iso])
+		token := sliceOfTokens[iso]
 		switch {
 		case strings.Contains(token, "--") || strings.Contains(token, "/*"):
 			nTokensToSkip := skipComments(sliceOfTokens, iso)
@@ -368,11 +368,12 @@ func getCtes(
 	replacer *strings.Replacer,
 ) (map[string]spLineage, int) {
 
+	stopTokens := []string{"into", "update", "delete", "merge"}
 	lineageCteTables := make(map[string]spLineage, 0)
 	var nTokensParsed int
 
 	for iso := startIndex; iso < len(sliceOfTokens)-1; iso++ {
-		if strings.Contains(strings.ToLower(sliceOfTokens[iso]), "with") ||
+		if strings.Contains(sliceOfTokens[iso], "with") ||
 			strings.Contains(sliceOfTokens[iso], ")") {
 			var startGetSource int
 			if strings.Contains(sliceOfTokens[iso], ")") {
@@ -393,7 +394,8 @@ func getCtes(
 				iso += elementsProcessed
 			}
 		}
-		if strings.ToLower(sliceOfTokens[iso]) == "into" && iso != len(sliceOfTokens)-1 {
+		if slices.Contains(stopTokens, sliceOfTokens[iso]) &&
+			iso != len(sliceOfTokens)-1 {
 			nTokensParsed = iso - startIndex - 1
 			break
 		}
@@ -431,8 +433,7 @@ func isCte(
 	}
 
 	switch {
-	case strings.Contains(sliceOfTokens[startIndex], "with") &&
-		len(tokensToCheck) == 2 && slices.Contains(tokensToCheck, "as"):
+	case len(tokensToCheck) == 2 && slices.Contains(tokensToCheck, "as"):
 		return true, tokensToCheck[0]
 	case len(tokensToCheck) <= 3:
 		return false, ""
@@ -527,7 +528,7 @@ func getSinkNameFromUpdate(
 
 forLoop:
 	for i := startIndex; i < len(sliceOfTokens); i++ {
-		token := strings.ToLower(sliceOfTokens[i])
+		token := sliceOfTokens[i]
 		switch {
 		case strings.Contains(token, "--") || strings.Contains(token, "/*"):
 			nTokensToSkip := skipComments(sliceOfTokens, i)
@@ -552,7 +553,7 @@ forLoop:
 						tableToUpdate = t
 						aliasUpdated = true
 					}
-					if index+1 == len(probableTables) && !aliasUpdated {
+					if index+1 == len(probableTables) && !aliasUpdated && len(alias) == 0 {
 						tableToUpdate = t
 					}
 				}
@@ -592,20 +593,23 @@ func getTableToUpdateWithAlias(
 			nTokensToSkip := skipComments(updateSlice, index)
 			index += nTokensToSkip
 		case !slices.Contains(tokensToSkip, updateSlice[index]):
-			tokensToCheck = append(tokensToCheck, replacer.Replace(updateSlice[index]))
+			//tokensToCheck = append(tokensToCheck, replacer.Replace(updateSlice[index]))
+			cleanToken := replacer.Replace(updateSlice[index])
+			if len(cleanToken) > 0 {
+				tokensToCheck = append(tokensToCheck, cleanToken)
+			}
 		}
 	}
 
 	elements := make([]map[string]string, 0)
 	lt := len(tokensToCheck)
 	for i, el := range tokensToCheck {
-		elLower := strings.ToLower(el)
-		if elLower == "from" && lt >= 4 && i+2 < lt && tokensToCheck[i+2] == "as" {
+		if el == "from" && lt >= 4 && i+2 < lt && tokensToCheck[i+2] == "as" {
 			elements = append(
 				elements,
 				map[string]string{tokensToCheck[i+3]: tokensToCheck[i+1]},
 			)
-		} else if elLower == "from" && i+2 < lt && lt >= 3 {
+		} else if el == "from" && i+2 < lt && lt >= 3 {
 			if len(tokensToCheck[i+1]) > 0 {
 				elements = append(
 					elements,
@@ -638,7 +642,7 @@ func getSpName(
 			nTokensToSkip := skipComments(cteSlice, index)
 			index += nTokensToSkip
 		case !slices.Contains(tokensToSkip, cteSlice[index]):
-			tokensToCheck = append(tokensToCheck, strings.ToLower(cteSlice[index]))
+			tokensToCheck = append(tokensToCheck, cteSlice[index])
 		}
 	}
 

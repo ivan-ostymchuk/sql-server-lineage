@@ -1,0 +1,14 @@
+CREATE procedure [schema].[merge_sp_test]
+as
+begin
+
+With s AS
+(
+Select col1, col2, col3 from A
+)
+MERGE INTO C USING s on C.col1 = s.col1
+WHEN NOT MATCHED BY TARGET THEN INSERT (col1,col2,col3) VALUES (s.col1, s.col2,s.col3)
+WHEN NOT MATCHED BY SOURCE THEN UPDATE SET C.col2=s.col2, C.col3=s.col3
+
+
+end;

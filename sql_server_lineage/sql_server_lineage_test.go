@@ -688,31 +688,43 @@ func TestLexerAndParserValidStrings(t *testing.T) {
 			},
 		},
 		"../test_data/merge_sp.txt": {
-			"Products": {
+			"products": {
 				"schema.merge_sp": []string{
-					"UpdatedProducts",
+					"updatedproducts",
 				},
 			},
-			"Products_2": {
+			"products_2": {
 				"schema.merge_sp": []string{
-					"UpdatedProducts",
+					"updatedproducts",
 				},
 			},
-			"Products_3": {
+			"products_3": {
 				"schema.merge_sp": []string{
-					"UpdatedProducts",
+					"updatedproducts",
 				},
 			},
-			"Products_4": {
+			"products_4": {
 				"schema.merge_sp": []string{
-					"UpdatedProducts",
+					"updatedproducts",
 				},
 			},
 		},
 		"../test_data/merge_sp_sub.txt": {
-			"Products": {
+			"products": {
 				"schema.merge_sp": []string{
 					"dbo.test",
+				},
+			},
+			"products_2": {
+				"schema.merge_sp": []string{
+					"dbo.test",
+				},
+			},
+		},
+		"../test_data/merge_sp_test.txt": {
+			"c": {
+				"schema.merge_sp_test": []string{
+					"a",
 				},
 			},
 		},
