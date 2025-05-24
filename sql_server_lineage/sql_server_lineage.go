@@ -463,32 +463,128 @@ forLoop:
 	return elementsParsed
 }
 
-func unnestTempTables(tempTablesLineage map[string]spLineage) map[string]spLineage {
+// unnestTempTables is the main function to resolve all temporary table sources.
+// It iterates through each temporary table and ensures its sources are fully unnested
+// down to base tables.
+func unnestTempTables(tempTablesLineageInput map[string]spLineage) map[string]spLineage {
+	// finalUnnestedLineages will store the fully resolved lineage for each temporary table.
+	// This map acts as a memoization cache.
+	finalUnnestedLineages := make(map[string]spLineage)
 
-	for _, lineage := range tempTablesLineage {
-		for index := 0; index < len(lineage.sources); index++ {
-			tmp, ok := tempTablesLineage[lineage.sources[index]]
-			if ok {
-				lineage.sources = slices.Delete(lineage.sources, index, index+1)
-				lineage.sources = append(lineage.sources, tmp.sources...)
-				if index == 0 {
-					index--
-				} else {
-					index = 0
-				}
-				continue
-			}
+	// It's good practice to work on a copy of the input if the original spLineage objects
+	// or their slices might be modified by other parts of the program concurrently,
+	// or if the input map itself is not meant to be mutated.
+	// For this recursive approach, allTempLineages serves as the definitive source of original definitions.
+	allTempLineages := make(map[string]spLineage)
+	for k, v := range tempTablesLineageInput {
+		sourcesCopy := make([]string, len(v.sources))
+		copy(sourcesCopy, v.sources) // Ensure sources slice is a copy
+		allTempLineages[k] = spLineage{
+			sink:     v.sink,
+			sinkType: v.sinkType,
+			spName:   v.spName,
+			sources:  sourcesCopy,
 		}
-		cleanedSources := make([]string, 0)
-		for _, source := range lineage.sources {
-			if len(source) > 0 && !slices.Contains(cleanedSources, source) {
-				cleanedSources = append(cleanedSources, source)
-			}
-		}
-		lineage.sources = cleanedSources
-		tempTablesLineage[lineage.sink] = lineage
 	}
-	return tempTablesLineage
+
+	// Iterate through all known temporary tables and resolve them if not already done.
+	for tempTableName := range allTempLineages {
+		if _, alreadyResolved := finalUnnestedLineages[tempTableName]; !alreadyResolved {
+			// The 'visitedInPath' map is fresh for each top-level call to doUnnestRecursive,
+			// tracking cycles specific to the current resolution chain.
+			doUnnestRecursive(tempTableName, allTempLineages, make(map[string]bool), finalUnnestedLineages)
+		}
+	}
+	return finalUnnestedLineages
+}
+
+// doUnnestRecursive is a helper function that performs the depth-first unnesting.
+//   - currentTempTable: The name of the temporary table currently being resolved.
+//   - allTempLineages: A read-only map of all original temporary table definitions.
+//   - visitedInPath: A map to track temporary tables in the current recursion stack (path)
+//     to detect cycles for the current resolution attempt.
+//   - finalUnnestedLineages: A map acting as a memoization cache, storing already
+//     fully resolved spLineage objects. This map is updated by the function.
+//
+// It returns the spLineage for currentTempTable with its sources fully resolved.
+func doUnnestRecursive(
+	currentTempTable string,
+	allTempLineages map[string]spLineage,
+	visitedInPath map[string]bool,
+	finalUnnestedLineages map[string]spLineage,
+) spLineage {
+	// 1. Memoization Check: If this temporary table has already been fully resolved,
+	//    return its stored resolved lineage.
+	if resolvedLineage, found := finalUnnestedLineages[currentTempTable]; found {
+		return resolvedLineage
+	}
+
+	// 2. Cycle Detection: If currentTempTable is already in visitedInPath,
+	//    it means we've encountered it again in the current chain of unnesting -> cycle.
+	if visitedInPath[currentTempTable] {
+		// Cycle detected for this path. Return a lineage for currentTempTable
+		// with empty sources, effectively pruning this cyclic branch of the dependency.
+		originalDetails := allTempLineages[currentTempTable] // Get original sink/type/spName
+		return spLineage{
+			sink:     originalDetails.sink,
+			sinkType: originalDetails.sinkType,
+			spName:   originalDetails.spName,
+			sources:  []string{}, // No sources contributed from this cyclic path
+		}
+	}
+
+	// Mark currentTempTable as visited in the current recursion path.
+	visitedInPath[currentTempTable] = true
+
+	// Get the original definition of the temporary table we are trying to resolve.
+	originalLineage := allTempLineages[currentTempTable]
+
+	// This will be the new lineage for currentTempTable with its sources resolved.
+	// Initialize with its own details, sources will be built up.
+	resolvingLineage := spLineage{
+		sink:     originalLineage.sink,
+		sinkType: originalLineage.sinkType,
+		spName:   originalLineage.spName,
+		sources:  make([]string, 0), // Initialize with empty sources
+	}
+
+	// Iterate through the sources of the current temporary table.
+	collectedNewSources := make([]string, 0)
+	for _, sourceName := range originalLineage.sources {
+		// Check if this sourceName refers to another temporary table.
+		if _, isAlsoTempTable := allTempLineages[sourceName]; isAlsoTempTable {
+			// Yes, sourceName is a temporary table. Recursively call to unnest it.
+			resolvedSubLineage := doUnnestRecursive(sourceName, allTempLineages, visitedInPath, finalUnnestedLineages)
+			// Append the *resolved* sources of the sub-table.
+			collectedNewSources = append(collectedNewSources, resolvedSubLineage.sources...)
+		} else {
+			// No, sourceName is a base table/source (not in allTempLineages). Add it directly.
+			collectedNewSources = append(collectedNewSources, sourceName)
+		}
+	}
+	// Assign the cleaned-up list of resolved sources.
+	resolvingLineage.sources = removeDuplicatesAndEmpty(collectedNewSources)
+
+	// Backtrack: Unmark currentTempTable from the visited path as we are returning from its resolution.
+	delete(visitedInPath, currentTempTable)
+
+	// Memoize: Store the fully resolved lineage for currentTempTable in our cache.
+	finalUnnestedLineages[currentTempTable] = resolvingLineage
+
+	return resolvingLineage
+}
+
+// removeDuplicatesAndEmpty cleans a slice of strings by removing duplicates and empty strings.
+func removeDuplicatesAndEmpty(sources []string) []string {
+	cleanedSources := make([]string, 0)
+	seen := make(map[string]bool)
+	for _, source := range sources {
+		if len(source) > 0 && !seen[source] {
+			cleanedSources = append(cleanedSources, source)
+			seen[source] = true
+		}
+	}
+	return cleanedSources
 }
 
 func getSinkNameFromMerge(
