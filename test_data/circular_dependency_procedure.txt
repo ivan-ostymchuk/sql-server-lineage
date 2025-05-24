@@ -1,0 +1,40 @@
+CREATE PROCEDURE dbo.sp_trigger_infinite_loop_recursive_valid
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Define a valid recursive Common Table Expression (CTE).
+    -- This CTE generates numbers from 1 to 5.
+    -- The Go parser might identify MyRecursiveCTE as sourcing from itself
+    -- when it sees 'FROM MyRecursiveCTE' in the recursive member,
+    -- without fully understanding the base case, recursive step, and termination condition.
+
+    WITH MyRecursiveCTE AS (
+        -- Anchor Member Definition: This is the base case of the recursion.
+        SELECT 1 AS NumberVal
+        -- Using a subquery for the anchor's source to make it explicit,
+        -- though not strictly necessary for the loop trigger.
+        FROM (SELECT 'anchor_source' AS src_col) AS AnchorSourceTable
+
+        UNION ALL
+
+        -- Recursive Member Definition: This part references the CTE itself.
+        SELECT
+            cte.NumberVal + 1
+        FROM
+            MyRecursiveCTE cte  -- MyRecursiveCTE references itself here.
+        WHERE
+            cte.NumberVal < 5   -- Termination condition for SQL Server execution.
+    )
+    -- This SELECT statement uses the recursive CTE to write to a sink table.
+    -- The Go parser will likely process the lineage for #SinkTableRecursive.
+    -- When it attempts to unnest MyRecursiveCTE, if MyRecursiveCTE is listed
+    -- as one of its own sources, the unnestTempTables function could loop.
+    SELECT
+        r.NumberVal
+    INTO SinkTableRecursive
+    FROM
+        MyRecursiveCTE AS r;
+
+END
+GO

@@ -10,6 +10,11 @@ import (
 
 func TestLexerAndParserValidStrings(t *testing.T) {
 	tests := map[string]map[string]map[string][]string{
+		"../test_data/circular_dependency_procedure.txt": {
+			"sinktablerecursive": {
+				"dbo.sp_trigger_infinite_loop_recursive_valid": []string{},
+			},
+		},
 		"../test_data/generate_missing_key_rubrik_monthly.txt": {
 			"prefix1_shows.schema.missing_key_rubrik_monthly": {
 				"schema.generate_missing_key_rubrik_monthly": []string{
