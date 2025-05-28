@@ -9,8 +9,7 @@ jobs:
       # Ensure that a wheel builder finishes even if another fails
       fail-fast: false
       matrix:
-        # macos-13 is an intel runner, macos-14 is apple silicon
-        os: [ubuntu-latest, windows-2019, macos-13, macos-14]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: [38, 39, 310, 311, 312]
 
     steps:
